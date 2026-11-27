@@ -14,12 +14,21 @@ describe('RichText', () => {
     expect(html).toMatch(/Rosneft<\/button>\),<\/span><span> which<\/span>$/);
   });
 
-  it('keeps a note marker after a node reference in the box of the reference', () => {
+  it('keeps a bare note marker after a node reference in the box of the reference', () => {
     const html = renderToStaticMarkup(
       <ReportContext.Provider value={{ openNode: () => undefined }}>
-        <RichText text="through [[N-M007|India VTB]].[^68] Then" />
+        <RichText text="through [[N-M007|India VTB]].[^68] Then" compact />
       </ReportContext.Provider>,
     );
     expect(html).toMatch(/VTB<\/button>\.<sup[^>]*>68<\/sup><\/span><span> Then<\/span>$/);
+  });
+
+  it('draws a reference of the text after a space, before the punctuation that follows it', () => {
+    const html = renderToStaticMarkup(
+      <RichText text="fell by 84%[^1]; China" partSlug="summary" />,
+    );
+    expect(html).toMatch(
+      /^<span>fell by 84%<\/span> <a href="[^"]*bibliography#ref-bruegel-tracker"[^>]*>\(authors&#x27; calculations based on Bahí Esteba et al\., 2026, fig\. 2\)<\/a><span>; China<\/span>$/,
+    );
   });
 });

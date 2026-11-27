@@ -5,9 +5,11 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Dialog, Popover } from 'radix-ui';
 import { documentMark } from '@gab/release/party-origin';
 import { cn } from '@/shared/lib/utils';
+import { citeText, entryOf, keysOf, shortNoteNumbers, splitNote } from './bibliography';
+import { EntryText } from './entry-text';
 import { useMarginScreen } from './margin-screen';
+import { reportAddress } from './report-context';
 import { noteDocuments } from './note-documents';
-import { RichText } from './rich-text';
 import { useContent, type ReportPath } from './use-content';
 
 const FOCUS =
@@ -20,14 +22,19 @@ const EASE = [0.4, 0, 0.2, 1] as const;
 interface NoteRefProps {
   readonly partSlug: string;
   readonly id: string;
+  /** A small marker in place of the reference: for a figure source line or a value, whose words
+   * already name the source. */
+  readonly compact?: boolean;
 }
 
 // Two exports, one job: the marker links to the anchor that the notes page writes.
 /** The anchor of one note on the notes page. */
 export const noteAnchor = (partSlug: string, id: string): string => `note-${partSlug}-${id}`;
+/** The anchor of one entry on the bibliography page. */
+export const entryAnchor = (key: string): string => `ref-${key}`;
 
-/** The note in full: its reference, its documents of the record, its quote, and the way to the
- * notes page. A note with no document shows its reference only. */
+/** The note in full: the entries that it cites, its short note, its documents of the record, its
+ * quote, and the way to the bibliography. A note with no document shows its entries only. */
 function NoteBody({ partSlug, id }: NoteRefProps) {
   const { parts, ui } = useContent();
   const note = parts.find((part) => part.slug === partSlug)?.notes.find((one) => one.id === id);
@@ -35,11 +42,21 @@ function NoteBody({ partSlug, id }: NoteRefProps) {
   const documents = held?.documents ?? [];
   const quote = held?.quote;
   if (note === undefined) return null;
+  const keys = keysOf(note.text);
+  const short = splitNote(note.text).note;
   return (
     <div className="space-y-3">
-      <p className="text-report-small break-words">
-        <RichText text={note.text} partSlug={partSlug} />
-      </p>
+      <p className="text-report-small break-words">({citeText(note.text)})</p>
+      <ul className="space-y-2">
+        {keys.map((key) => (
+          <li key={key} className="text-report-small">
+            <EntryText entry={entryOf(key)} />
+          </li>
+        ))}
+      </ul>
+      {short === '' ? null : (
+        <p className="border-t border-divider pt-3 text-report-small break-words">{short}</p>
+      )}
       {documents.length === 0 ? null : (
         <section className="border-t border-divider pt-3">
           <h3 className={CAPTION}>
@@ -71,7 +88,7 @@ function NoteBody({ partSlug, id }: NoteRefProps) {
       )}
       <Link
         to={`/${ui.paths.notes}` as ReportPath}
-        hash={noteAnchor(partSlug, id)}
+        hash={short === '' ? entryAnchor(keys[0] ?? '') : noteAnchor(partSlug, id)}
         className={cn('inline-flex min-h-11 items-center text-report-small', UNDERLINE, FOCUS)}
       >
         {ui.note.all}
@@ -93,16 +110,40 @@ const besideText = (button: HTMLElement | null): DOMRect => {
   return new DOMRect(block.left, line.top, block.width, line.height);
 };
 
-/** A note marker: a button with the number of the note. From 1280px it opens the note in the
- * margin beside its paragraph; under 1280px, in a bottom sheet. Escape closes the note, and the
- * focus goes back to the marker. */
-export function NoteRef({ partSlug, id }: NoteRefProps) {
+/** A reference of the text: the short reference in its parenthesis, a link to its first entry on
+ * the bibliography page, with the number of its short note when it has one. From 1280px a click
+ * opens the note in the margin beside its paragraph; under 1280px, in a bottom sheet. Escape closes
+ * the note, and the focus goes back to the reference. A compact reference is a small marker. */
+export function NoteRef({ partSlug, id, compact = false }: NoteRefProps) {
   const { parts, ui } = useContent();
-  if (!parts.some((part) => part.slug === partSlug && part.notes.some((one) => one.id === id)))
-    return null;
+  const note = parts.find((part) => part.slug === partSlug)?.notes.find((one) => one.id === id);
+  if (note === undefined) return null;
+  const number = shortNoteNumbers(parts.flatMap((part) => part.notes)).get(id);
+  const cite = citeText(note.text);
+  const body = <NoteBody partSlug={partSlug} id={id} />;
+  if (compact)
+    return (
+      <Marker
+        name={`${ui.note.label}: ${cite}`}
+        mark={number === undefined ? ui.note.mark : String(number)}
+      >
+        {body}
+      </Marker>
+    );
   return (
-    <Marker name={`${ui.note.label} ${id}`} mark={id.slice(id.lastIndexOf('-') + 1)}>
-      <NoteBody partSlug={partSlug} id={id} />
+    <Marker
+      name={`${ui.note.label}: ${cite}`}
+      inline={
+        <>
+          ({cite})
+          {number === undefined ? null : (
+            <span className="ml-0.5 align-super font-mono text-report-label/none">{number}</span>
+          )}
+        </>
+      }
+      href={`${ui.paths.notes}#${entryAnchor(keysOf(note.text)[0] ?? '')}`}
+    >
+      {body}
     </Marker>
   );
 }
@@ -137,17 +178,22 @@ export function ImageCredit({ src }: { readonly src: string }) {
 /** The marker button and the note it opens: in the margin from 1280px, in a sheet under it. */
 function Marker({
   name,
-  mark,
+  mark = '',
+  inline,
+  href = '',
   children,
 }: {
   readonly name: string;
-  readonly mark: string;
+  readonly mark?: string;
+  /** The words of an in-text reference: the trigger is then a link of the text, not a marker. */
+  readonly inline?: ReactNode;
+  readonly href?: string;
   readonly children: ReactNode;
 }) {
   const { ui } = useContent();
   const margin = useMarginScreen();
   const [open, setOpen] = useState(false);
-  const marker = useRef<HTMLButtonElement>(null);
+  const marker = useRef<HTMLButtonElement & HTMLAnchorElement>(null);
   // A note that crosses 1280px closes, because the margin note and the sheet are two trees, and
   // the marker mounts again in the other one; the count asks the new marker to take the focus.
   const [shownAt, setShownAt] = useState(margin);
@@ -174,6 +220,30 @@ function Marker({
       return marker.current ?? undefined;
     },
   });
+  const reference =
+    inline === undefined ? null : (
+      <a
+        ref={marker}
+        href={reportAddress(href)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={open ? noteId : undefined}
+        // A click opens the note; a click with a modifier key opens the bibliography.
+        onClick={(event) => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          giveBack.current = open;
+          setOpen(!open);
+        }}
+        className={cn(
+          'note-cite text-label decoration-border underline-offset-4 hover:text-foreground hover:underline aria-expanded:text-foreground',
+          'transition-colors duration-150',
+          FOCUS,
+        )}
+      >
+        {inline}
+      </a>
+    );
   const button = (
     <button
       ref={marker}
@@ -209,7 +279,7 @@ function Marker({
       <Popover.Root open={open} onOpenChange={setOpen}>
         {/* The note anchors to its text block, not to the marker, so the marker is no trigger of
             the kit: a trigger can take the anchor back when it mounts again. */}
-        {button}
+        {reference ?? button}
         <Popover.Anchor virtualRef={anchor} />
         <Popover.Portal>
           <Popover.Content
@@ -244,7 +314,8 @@ function Marker({
     );
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger asChild>{button}</Dialog.Trigger>
+      {/* A link of the text opens the sheet itself: a trigger of the kit would follow the link. */}
+      {reference ?? <Dialog.Trigger asChild>{button}</Dialog.Trigger>}
       <AnimatePresence>
         {open ? (
           <Dialog.Portal key="note" forceMount>
@@ -257,7 +328,18 @@ function Marker({
                 transition={{ duration: 0.2, ease: EASE }}
               />
             </Dialog.Overlay>
-            <Dialog.Content forceMount asChild aria-describedby={undefined}>
+            <Dialog.Content
+              forceMount
+              asChild
+              aria-describedby={undefined}
+              id={noteId}
+              onCloseAutoFocus={(event) => {
+                // The kit gives the focus back to its trigger; a link of the text is none.
+                if (reference === null) return;
+                event.preventDefault();
+                marker.current?.focus();
+              }}
+            >
               <motion.div
                 className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85svh] flex-col border-t border-border bg-surface text-foreground outline-none"
                 initial={{ y: '100%' }}

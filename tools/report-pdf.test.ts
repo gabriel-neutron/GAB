@@ -2,7 +2,18 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { copies, LANGS, pagesOf, pdfOf, recordOf, STAMP, stampOf } from './report-pdf.ts';
+import {
+  copies,
+  htmlOf,
+  LANGS,
+  pagesOf,
+  pdfOf,
+  recordOf,
+  STAMP,
+  stampOf,
+  withReferences,
+} from './report-pdf.ts';
+import { citeText, entries } from '../src/features/report/bibliography.ts';
 
 const words = (text: string): string =>
   text
@@ -57,9 +68,63 @@ describe('report PDF', () => {
         .map((block) =>
           words((block[2] ?? block[3] ?? '').replace(/<span[^>]*>–<\/span>|<[^>]+>/g, '')),
         )
-        .filter((block) => !text.includes(block))
+        // The title of the bibliography page is no words of the final text.
+        .filter((block) => block !== 'Bibliography' && !text.includes(block))
         .map((block) => `${file}: ${block}`),
     );
     expect(missing).toEqual([]);
+  });
+
+  it('prints each call as its reference, and each short note at the foot of its page', async () => {
+    const { en } = await copies((file) => import(/* @vite-ignore */ file));
+    const html = htmlOf('en', en);
+    const plain = (text: string) =>
+      text
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+    const source = readFileSync(
+      resolve(import.meta.dirname, '../src/features/report/source/report-en.md'),
+      'utf8',
+    );
+    const lines = new Map(
+      [...source.matchAll(/^\[\^(\d+)\]: (.*)$/gmu)].map(([, id = '', text = '']) => [id, text]),
+    );
+    const cites = [...html.matchAll(/<span data-cite="(\d+)">(.*?)<\/span>(?=<sup|[^<]|<\/)/gs)];
+    expect(cites.length).toBeGreaterThan(100);
+    for (const [, id = '', cite = ''] of cites)
+      expect(plain(cite)).toBe(`(${citeText(lines.get(id) ?? '')})`);
+    // Each link of a reference goes to its entry of the bibliography.
+    for (const [, key] of html.matchAll(/href="#ref-([a-z0-9-]+)"/g))
+      expect(html).toContain(`id="ref-${key ?? ''}"`);
+    for (const entry of entries) expect(html).toContain(`id="ref-${entry.key}"`);
+    // The short notes: one row for each, after the rule of its page, with the words of the text.
+    const shorts = [...lines.values()].filter((text) => text.includes(' | '));
+    const rows = [...html.matchAll(/<span style="overflow-wrap: anywhere">(.*?)<\/span><\/div>/gs)];
+    expect(rows.map(([, text = '']) => plain(text))).toEqual(
+      shorts.map((text) => text.slice(text.indexOf(' | ') + 3)),
+    );
+    expect(html).not.toContain('{{bibliography}}');
+  });
+
+  it('moves the reference before the punctuation of the call, and drops the call of a figure note', () => {
+    const notes = {
+      '1': { cite: 'A, 2026', short: '' },
+      '2': { cite: 'B', short: 'Why.', number: 1 },
+    };
+    const sup = (id: string) => `<sup data-fn="${id}" style="x">${id}</sup>`;
+    const rule =
+      '<div style="width: 32px; border-top: 1px solid #cfcac7; margin-bottom: 8px"></div>';
+    expect(withReferences(`<p>fell 84%;${sup('1')} then</p>`, notes)).toBe(
+      '<p>fell 84% <span data-cite="1">(A, 2026)</span>; then</p>',
+    );
+    expect(withReferences(`<p><em>Note.</em> Data: A (2026).${sup('1')}</p>`, notes)).toBe(
+      '<p><em>Note.</em> Data: A (2026).</p>',
+    );
+    const page = withReferences(`<p>x.${sup('2')}</p>${rule}`, notes);
+    expect(page).toContain('<span data-cite="2">(B)</span><sup data-fn="1"');
+    expect(page).toContain('<span style="overflow-wrap: anywhere">Why.</span></div>');
+    expect(() => withReferences(`<p>x${sup('2')}</p>`, notes)).toThrow(/no block of notes/);
   });
 });

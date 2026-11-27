@@ -83,7 +83,7 @@ function RoubleChart() {
       </ol>
       <p className="mt-3 text-report-small text-foreground/75">
         {chart.source}
-        <NoteRef partSlug={chart.note.part} id={chart.note.id} />
+        <NoteRef partSlug={chart.note.part} id={chart.note.id} compact />
       </p>
     </figure>
   );
@@ -95,7 +95,8 @@ const NUMBER = 'text-report-display leading-[0.8] tracking-[-0.07em] tabular-num
 
 function hero(finding: Finding, partSlug: string): ReactNode {
   const { value } = finding;
-  const note = finding.note === '' ? null : <NoteRef partSlug={partSlug} id={finding.note} />;
+  const note =
+    finding.note === '' ? null : <NoteRef partSlug={partSlug} id={finding.note} compact />;
   if (value?.kind === 'number')
     return (
       <p className={cn(NUMBER, accent.text, 'w-fit')}>

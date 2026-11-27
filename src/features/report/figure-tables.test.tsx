@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { prerender } from 'react-dom/static';
 import { describe, expect, it, vi } from 'vitest';
+import { citeText, splitNote } from './bibliography';
 import { en } from './content';
 import figures from './data/publication-figures.json';
 import { partComponents } from './parts';
@@ -11,6 +12,18 @@ import { criticalLayers } from './parts/method-chronology/critical-layers';
 import { PartDefault } from './parts/part-default';
 import { ContentContext, type ReportContent } from './use-content';
 import { ReportContext } from './use-report';
+
+// The text as React writes it in the markup, and as a pattern.
+const markup = (text: string): string =>
+  text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const noteText = (id: string): string =>
+  en.parts.flatMap((part) => part.notes).find((note) => note.id === id)?.text ?? '';
 
 // The annex links with the router; a plain anchor is enough here.
 vi.mock('@tanstack/react-router', () => ({
@@ -95,35 +108,48 @@ describe.each([['en', en]] as const)('the figures of the %s page', (lang, copy) 
 describe.each([['en', en]] as const)('the citations of the %s page', (lang, copy) => {
   const html = pages[lang];
 
-  it('draws each note marker with the shared marker only', () => {
+  it('draws each reference with the shared reference or the shared marker only', () => {
     // The bare marker of a text with no part, or a note printed beside the text, is another system.
     expect(html).not.toContain('<sup');
     expect(html).not.toMatch(/\[\^[^\]]+\]/);
-    // A closed note is not in the markup; a note printed in full beside its text is.
-    for (const note of copy.parts.flatMap((part) => part.notes))
-      expect(html).not.toContain(note.text.replaceAll('*', ''));
-    // Each control that opens a dialog is the shared marker, except the card of a node reference.
-    const markers = (html.match(/<button[^>]*>/g) ?? []).filter(
+    expect(html).not.toMatch(/@[a-z0-9-]+-[a-z0-9]/);
+    // A closed note is not in the markup: its short note shows only when it opens.
+    for (const note of copy.parts.flatMap((part) => part.notes)) {
+      const { note: short } = splitNote(note.text);
+      if (short !== '') expect(html).not.toContain(markup(short));
+    }
+    // Each control that opens a dialog is the shared marker or the shared reference, except the
+    // card of a node reference.
+    const markers = (html.match(/<(?:button|a)[^>]*>/g) ?? []).filter(
       (one) =>
         one.includes('aria-haspopup="dialog"') && !one.includes('data-slot="popover-trigger"'),
     );
     expect(markers.length).toBeGreaterThan(0);
-    for (const marker of markers) expect(marker).toContain('note-ref');
-    // Each part with a note mark in its text draws at least one marker.
+    for (const marker of markers) expect(marker).toMatch(/note-ref|note-cite/);
+    // Each part with a note mark in its text draws at least one reference.
     // A part ends where the next part starts.
     const starts = copy.parts.map((part) => html.indexOf(`<section id="${part.slug}"`));
     copy.parts.forEach((part, index) => {
       if (!part.blocks.some((block) => block.text.includes('[^'))) return;
       expect(starts[index]).toBeGreaterThanOrEqual(0);
-      expect(html.slice(starts[index], starts[index + 1])).toContain('note-ref');
+      expect(html.slice(starts[index], starts[index + 1])).toMatch(/note-ref|note-cite/);
     });
+  });
+
+  it('shows the short reference of each note of a text block in its parenthesis', () => {
+    for (const part of copy.parts)
+      for (const block of part.blocks.filter((one) => one.kind !== 'figure'))
+        for (const [, id] of block.text.matchAll(/\[\^([^\]]+)\]/g)) {
+          const note = part.notes.find((one) => one.id === id);
+          expect(html).toContain(`(${markup(citeText(note?.text ?? ''))})`);
+        }
   });
 
   it('gives each summary value with a note the marker of that note', () => {
     for (const { note } of copy.openingUi.summary.values.filter((one) => one.note !== ''))
       expect(html).toMatch(
         new RegExp(
-          `<p class="[^"]*text-report-(?:display|number)[^"]*">(?:(?!</p>).)*aria-label="${copy.ui.note.label} ${note}"`,
+          `<p class="[^"]*text-report-(?:display|number)[^"]*">(?:(?!</p>).)*aria-label="${copy.ui.note.label}: ${escaped(markup(citeText(noteText(note))))}"`,
           's',
         ),
       );

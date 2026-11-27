@@ -32,35 +32,147 @@ export const pagesOf = (lang: string): string[] =>
     .map((file) => join(TEMPLATES, 'pages', lang, file));
 
 type Lang = (typeof LANGS)[number];
+/** One note of the text: its reference as HTML, and its short note with its number. */
+interface PrintedNote {
+  readonly cite: string;
+  readonly short: string;
+  readonly number?: number;
+}
 interface Copy {
   readonly byline: string;
+  readonly notes: Readonly<Record<string, PrintedNote>>;
+  /** The blocks of the bibliography page, as HTML. */
+  readonly bibliography: string;
 }
 
-/** The byline of each language, read from the modules of the page through `load`. The types stay
- * local: the tools project does not compile the application. */
+// The types of the modules of the page that the tool reads. The types stay local: the tools
+// project does not compile the application.
+interface Entry {
+  readonly key: string;
+  readonly group: string;
+  readonly cite: string;
+  readonly issuer: string;
+  readonly date: string;
+  readonly title: string;
+  readonly url: string;
+  readonly detail?: string;
+}
+interface Line {
+  readonly id: string;
+  readonly text: string;
+}
+interface Bibliography {
+  readonly GROUPS: Record<string, string>;
+  readonly entryOf: (key: string) => Entry;
+  readonly splitNote: (text: string) => { cite: string; note: string };
+  readonly shortNoteNumbers: (notes: Line[]) => ReadonlyMap<string, number>;
+  readonly citingNotes: (notes: Line[]) => ReadonlyMap<string, string[]>;
+  readonly groupedEntries: () => readonly (readonly [string, readonly Entry[]])[];
+}
+interface Documents {
+  readonly sourceDocuments: (
+    source: Entry,
+    noteIds: Iterable<string>,
+  ) => { id: string; retrievedAt: string }[];
+}
+
+const SOURCE = resolve(import.meta.dirname, '../src/features/report/source/report-en.md');
+const MONO = "font-family: 'Geist Mono', ui-monospace, monospace";
+const LINK = 'color: inherit; text-decoration: none';
+const ENTRY =
+  'margin: 0 0 3px; max-width: 650px; padding-left: 14px; text-indent: -14px; font-size: 10px; line-height: 12.5px; color: #101010; overflow-wrap: anywhere; text-wrap: pretty';
+const GROUP =
+  'margin: 14px 0 6px; max-width: 650px; font-size: 15px; line-height: 20px; font-weight: 400; color: #101010; text-wrap: balance; clear: both';
+const META = `${MONO}; font-size: 9px; color: #645f5c`;
+const CALL_STYLE = `${MONO}; font-size: 11px; line-height: 0; vertical-align: super; color: #b8470d`;
+
+/** The byline, the notes and the bibliography of each language, read from the final text and the
+ * modules of the page through `load`. */
 export async function copies(
   load: (file: string) => Promise<unknown>,
 ): Promise<Record<Lang, Copy>> {
   const at = (file: string) => resolve(import.meta.dirname, '../src/features/report', file);
-  const { en } = (await load(at('content.ts'))) as { en: { report: Copy } };
-  return { en: { byline: en.report.byline } };
+  const { en } = (await load(at('content.ts'))) as { en: { report: { byline: string } } };
+  const bib = (await load(at('bibliography.ts'))) as Bibliography;
+  const { sourceDocuments } = (await load(at('note-documents.ts'))) as Documents;
+  const lines: Line[] = [...readFileSync(SOURCE, 'utf8').matchAll(/^\[\^(\d+)\]: (.*)$/gmu)].map(
+    ([, id = '', text = '']) => ({ id, text: text.trim() }),
+  );
+  const numbers = bib.shortNoteNumbers(lines);
+  const notes: Record<string, PrintedNote> = {};
+  for (const { id, text } of lines) {
+    const { cite, note } = bib.splitNote(text);
+    const html = escape(cite).replace(
+      /@([a-z0-9][a-z0-9-]*)/g,
+      (_, key: string) =>
+        `<a href="#ref-${key}" style="${LINK}">${escape(bib.entryOf(key).cite)}</a>`,
+    );
+    const number = numbers.get(id);
+    notes[id] = { cite: html, short: note, ...(number === undefined ? {} : { number }) };
+  }
+  const citing = bib.citingNotes(lines);
+  const bibliography = bib
+    .groupedEntries()
+    .flatMap(([group, entries]) => [
+      `<h3 style="${GROUP}">${escape(bib.GROUPS[group] ?? group)}</h3>`,
+      ...entries.map((entry) => {
+        const stored = sourceDocuments(entry, citing.get(entry.key) ?? []);
+        // The latest stored copy: the web page and the source list give every copy.
+        const latest = [...stored]
+          .sort((a, b) => a.retrievedAt.localeCompare(b.retrievedAt))
+          .at(-1);
+        const more = stored.length > 1 ? ` and ${String(stored.length - 1)} more` : '';
+        const record =
+          latest === undefined
+            ? ''
+            : ` <span style="${META}">Accessed ${latest.retrievedAt}; stored ${latest.id}${more}.</span>`;
+        const detail = entry.detail === undefined ? '' : ` ${escape(entry.detail)}.`;
+        return `<p id="ref-${entry.key}" style="${ENTRY}"><strong style="font-weight: 500">${escape(entry.cite.replace(/\.$/u, ''))}.</strong> ${escape(entry.issuer)} (${escape(entry.date)}). <em>${escape(entry.title)}</em>.${detail} ${escape(entry.url)}${record}</p>`;
+      }),
+    ])
+    .join('\n');
+  return { en: { byline: en.report.byline, notes, bibliography } };
 }
 
-/** The input of the layout pass: the label of a link line, and the URL of a source document for
- * each note with an exact match. A manual match never gives a link. */
+const CALL = /([.,;:]*)<sup data-fn="(\d+)"[^>]*>\d+<\/sup>/g;
+// The short rule above the notes of a page: the short notes of the page go after it.
+const RULE = '<div style="width: 32px; border-top: 1px solid #cfcac7; margin-bottom: 8px"></div>';
+const FIGURE_NOTE = '<em>Note.</em>';
+
+/** One page with its references in the text: each call of a note becomes the reference in its
+ * parenthesis, before the punctuation that came before the call, and a note with a short note
+ * keeps a call with its number. A figure note names its sources already: its call goes. The
+ * short notes of the calls of the page go in its block of notes. */
+export function withReferences(page: string, notes: Copy['notes']): string {
+  const shorts: string[] = [];
+  const text = page
+    .split(/(?=<p\b)/)
+    .map((block) =>
+      block.replace(CALL, (_, stop: string, id: string) => {
+        const note = notes[id];
+        if (note === undefined) throw new Error(`note ${id} is not in the final text`);
+        let call = '';
+        if (note.number !== undefined) {
+          const number = String(note.number);
+          call = `<sup data-fn="${number}" style="${CALL_STYLE}">${number}</sup>`;
+          shorts.push(
+            `<div style="display: grid; grid-template-columns: 28px minmax(0, 1fr); margin: 0 0 3px; font-size: 12px; line-height: 16px; color: #4d4947"><span style="${MONO}; color: #b8470d">${number}</span><span style="overflow-wrap: anywhere">${escape(note.short)}</span></div>`,
+          );
+        }
+        if (block.includes(FIGURE_NOTE)) return `${call}${stop}`;
+        return ` <span data-cite="${id}">(${note.cite})</span>${call}${stop}`;
+      }),
+    )
+    .join('');
+  if (shorts.length === 0) return text;
+  if (!text.includes(RULE)) throw new Error('a page with a short note has no block of notes');
+  return text.replace(RULE, () => RULE + shorts.join(''));
+}
+
+/** The input of the layout pass. A footnote of the PDF is a short note (an explanation or a
+ * caveat), and the bibliography gives the address of each source: no footnote gets a link line. */
 export function layoutInputOf(): LayoutInput {
-  const file = JSON.parse(
-    readFileSync(
-      resolve(import.meta.dirname, '../src/features/report/data/note-documents.json'),
-      'utf8',
-    ),
-  ) as { notes: { id: string; documents: { url: string; match: string }[] }[] };
-  const links: Record<string, string> = {};
-  for (const note of file.notes) {
-    const exact = note.documents.find((document) => document.match === 'exact');
-    if (exact) links[note.id] = exact.url;
-  }
-  return { linkLabel: 'Link:', links };
+  return { linkLabel: 'Link:', links: {} };
 }
 
 /** The stamp of one language: the printed page, the code of the layout pass and its input. */
@@ -106,10 +218,12 @@ a{color:#101010}
 
 /** The page that Chromium prints for one language: each template in a sheet, the byline in place
  * of `{{byline}}` and each figure inline. */
-export function htmlOf(lang: Lang, { byline }: Copy): string {
+export function htmlOf(lang: Lang, copy: Copy): string {
+  const { byline } = copy;
   const sheets = pagesOf(lang).map((file) => {
-    const page = readFileSync(file, 'utf8')
+    const page = withReferences(readFileSync(file, 'utf8'), copy.notes)
       .replace('{{byline}}', () => escape(byline))
+      .replace('{{bibliography}}', () => copy.bibliography)
       .replace(/src="(figures\/[^"]+\.png)"/g, (_, path: string) => {
         const data = readFileSync(join(TEMPLATES, path)).toString('base64');
         return `src="data:image/png;base64,${data}"`;
