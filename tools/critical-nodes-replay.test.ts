@@ -30,6 +30,8 @@ test('maps a country name to its current ISO code, never to a deprecated one', (
   expect(countryCodes('Myanmar (Burma)')).toEqual(['MM']);
   expect(countryCodes('Benin')).toEqual(['BJ']);
   expect(countryCodes('["SU","UK"]')).toEqual(['RU', 'GB']);
+  // The map of a deprecated code comes from the ICU data of Node: a change of that data fails here.
+  expect(countryCodes('["CS","TP","ZR"]')).toEqual(['RS', 'TL', 'CD']);
 });
 
 test('reads a date as a list or as the head of an OFAC action id', () => {
