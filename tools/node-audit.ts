@@ -38,6 +38,7 @@ import { hostGuards } from '@gab/tools/host-lease';
 import type { CheckVerdict } from '@gab/tools/tool';
 
 import {
+  claimedDays,
   count,
   nodeMembers,
   readRelease,
@@ -132,6 +133,8 @@ export interface Context {
   readonly claimsOfEntity: ReadonlyMap<string, readonly Claim[]>;
   readonly identifiers: ReturnType<typeof identifiersOf>;
   readonly actAttributes: ReadonlyMap<string, ReadonlySet<string>>;
+  /** The days that the release gives as claims of a relation. */
+  readonly days: ReturnType<typeof claimedDays>;
   readonly duplicates: ReadonlyMap<string, string>;
   readonly type: ReadonlyMap<string, string>;
   readonly designated: ReadonlySet<string>;
@@ -150,8 +153,18 @@ export const contextOf = (
   const claimsOfEntity = new Map<string, Claim[]>();
   const actAttributes = new Map<string, Set<string>>();
   const designated = new Set<string>();
+  const days = claimedDays(files.claims);
+  // A day claim of a relation is a fact of both ends of the relation, as the relation is.
+  const endsOf = new Map(
+    files.relations.map((one) => [one['id'] ?? '', [one['from_id'] ?? '', one['to_id'] ?? '']]),
+  );
   for (const claim of claims.values()) {
-    const ends = claim.kind === 'relation' ? [claim.subject, claim.object] : [claim.subject];
+    const ends =
+      claim.kind === 'relation'
+        ? [claim.subject, claim.object]
+        : days.has(claim.id)
+          ? (endsOf.get(claim.subject) ?? [claim.subject])
+          : [claim.subject];
     for (const one of new Set(ends))
       claimsOfEntity.set(one, [...(claimsOfEntity.get(one) ?? []), claim]);
     if (claim.kind === 'attribute')
@@ -168,6 +181,7 @@ export const contextOf = (
     claimsOfEntity,
     identifiers,
     actAttributes,
+    days,
     duplicates: duplicatesOf(files.entities, identifiers),
     type: new Map(files.entities.map((one) => [one['id'] ?? '', one['type'] ?? ''])),
     designated,
@@ -224,7 +238,7 @@ export const auditNode = async (node: AuditNode, context: Context): Promise<Node
       valueInExcerpt(claim, context.identifiers),
       denyList(claim),
       identifierValid(claim),
-      dates(claim, context.actAttributes),
+      dates(claim, context.actAttributes, context.days),
       designationSource(claim, context.identifiers),
       await excerptAtSource(claim, context.mode, context.source),
       ...(await recordChecks(claim, context.reader)),

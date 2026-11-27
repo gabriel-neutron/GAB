@@ -18,6 +18,20 @@ test('maps the country names of the release to ISO codes', () => {
   expect(countryCodes('Dubai Internet City, United Arab Emirates')).toEqual([]);
 });
 
+// A deprecated code (SU, UK, FX, DD, YU, VD, BU) has the same English name as its current code. The
+// table must keep the current code, and a deprecated code in a value gives the current code.
+test('maps a country name to its current ISO code, never to a deprecated one', () => {
+  expect(countryCodes('Russia')).toEqual(['RU']);
+  expect(countryCodes('United Kingdom')).toEqual(['GB']);
+  expect(countryCodes('France')).toEqual(['FR']);
+  expect(countryCodes('Germany')).toEqual(['DE']);
+  expect(countryCodes('Serbia')).toEqual(['RS']);
+  expect(countryCodes('Vietnam')).toEqual(['VN']);
+  expect(countryCodes('Myanmar (Burma)')).toEqual(['MM']);
+  expect(countryCodes('Benin')).toEqual(['BJ']);
+  expect(countryCodes('["SU","UK"]')).toEqual(['RU', 'GB']);
+});
+
 test('reads a date as a list or as the head of an OFAC action id', () => {
   expect(daysOf('["2026-06-12"]')).toEqual(['2026-06-12']);
   expect(daysOf('20261231_01')).toEqual(['2026-12-31']);
@@ -127,6 +141,80 @@ test('groups vessels under their manager and applies the three conditions', () =
   });
 });
 
+test('reads a date that the release gives as a claim of the relation', () => {
+  const relation = (id: string, to: string) =>
+    row({
+      id: `r${id}`,
+      type: 'designated_by',
+      from_id: id,
+      to_id: to,
+      valid_from: '',
+      valid_to: '',
+    });
+  const files: ReleaseFiles = {
+    entities: [
+      row({ id: 'act', type: 'legal_act' }),
+      row({ id: 'x', type: 'company' }),
+      row({ id: 'y', type: 'company' }),
+      row({ id: 'z', type: 'company' }),
+    ],
+    // The act has no date, so only a claim of the relation can make the relation active.
+    relations: [relation('x', 'act'), relation('y', 'act'), relation('z', 'act')],
+    claims: [
+      ...['x', 'y', 'z'].flatMap((id) => [
+        row({
+          claim_kind: 'attribute',
+          subject_id: id,
+          attribute: 'country',
+          value: 'Kazakhstan',
+          nato_letter: 'A',
+        }),
+        row({
+          claim_id: id,
+          claim_kind: 'relation',
+          subject_kind: 'entity',
+          subject_id: id,
+          relation_type: 'designated_by',
+          object_id: 'act',
+          nato_letter: 'A',
+        }),
+      ]),
+      // x: a day of letter A. y: a day of letter C. z: a value that is not a day.
+      row({
+        claim_id: 'rx/valid_from',
+        claim_kind: 'attribute',
+        subject_kind: 'relation',
+        subject_id: 'rx',
+        attribute: 'valid_from',
+        value: '2025-01-10',
+        nato_letter: 'A',
+      }),
+      row({
+        claim_id: 'ry/valid_to',
+        claim_kind: 'attribute',
+        subject_kind: 'relation',
+        subject_id: 'ry',
+        attribute: 'valid_to',
+        value: '2026-02-27',
+        nato_letter: 'C',
+      }),
+      row({
+        claim_id: 'rz/valid_from',
+        claim_kind: 'attribute',
+        subject_kind: 'relation',
+        subject_id: 'rz',
+        attribute: 'valid_from',
+        value: 'January 2025',
+        nato_letter: 'A',
+      }),
+    ],
+  };
+  const nodes = new Map(replay(files).map((one) => [one.id, one]));
+  expect(nodes.get('x')).toMatchObject({ b: true, official: true });
+  expect(nodes.get('y')).toMatchObject({ b: true, official: false });
+  expect(nodes.get('z')).toMatchObject({ b: false });
+});
+
 // Downloads the release of the report once (7.6 MB, checked by its SHA-256) and pins the count.
 test(
   'gives the count of the report on the release data-2026-10-28',
@@ -134,9 +222,9 @@ test(
   async () => {
     const result = count(replay(readRelease(await reportRelease())));
     expect(result).toEqual({
-      critical: 539,
-      official: 410,
-      byLayer: { Pay: 488, Finance: 4, Fight: 47 },
+      critical: 451,
+      official: 336,
+      byLayer: { Pay: 399, Finance: 5, Fight: 47 },
     });
   },
 );

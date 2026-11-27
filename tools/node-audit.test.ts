@@ -204,6 +204,17 @@ describe('the checks of a fact', () => {
     expect(dates(one('r-des'), new Map()).reason).toBe('no_act_date');
   });
 
+  it('reads a bound that the release gives as a claim of the relation', () => {
+    const days = new Map([
+      ['r-des/valid_from', { day: '2025-01-10', official: true }],
+      ['r-own/valid_to', { day: '2024-01-01', official: true }],
+    ]);
+    expect(dates(one('r-des'), new Map(), days).reason).toBe('the bounds are in order');
+    expect(dates(one('r-own'), new Map(), days).reason).toBe(
+      'start 2024-03-01 after end 2024-01-01',
+    );
+  });
+
   it('needs an official document and the own identifier of the subject for a designation', () => {
     expect(designationSource(one('r-des'), identifiers).verdict).toBe('pass');
     expect(
@@ -390,6 +401,20 @@ describe('the audit of a release', () => {
     const { nodes } = auditOrder(FILES, [OWNER]);
     expect(citingNodes(nodes, context, new Set(['doc_a'])).map((one) => one.id)).toEqual([OWNER]);
     expect(citingNodes(nodes, context, new Set(['doc_z']))).toEqual([]);
+  });
+
+  it('gives a day claim of a relation to both ends of the relation', () => {
+    const day = cite({
+      claim_id: 'r-des/valid_from',
+      subject_kind: 'relation',
+      subject_id: 'r-des',
+      attribute: 'valid_from',
+      value: '2025-01-10',
+    });
+    const context = contextOf({ ...FILES, claims: [...ROWS, day] }, null);
+    for (const end of [VESSEL, ACT])
+      expect(context.claimsOfEntity.get(end)?.map((one) => one.id)).toContain('r-des/valid_from');
+    expect(context.days.get('r-des/valid_from')).toEqual({ day: '2025-01-10', official: true });
   });
 
   it('writes one line for each node, with each check of each fact, and a summary', async () => {
