@@ -23,7 +23,6 @@ const PUBLISHERS: readonly Publisher[] = [
   { host: 'gur.gov.ua', party: 'UA', name: 'GUR, the military intelligence of Ukraine' },
   { host: 'mil.gov.ua', party: 'UA', name: 'the Ministry of Defence of Ukraine' },
   { host: 'mod.gov.ua', party: 'UA', name: 'the Ministry of Defence of Ukraine' },
-  { host: 'mod.gov.ua', party: 'UA', name: 'the Ministry of Defence of Ukraine' },
   { host: 'zsu.gov.ua', party: 'UA', name: 'the Armed Forces of Ukraine' },
   {
     host: 't.me',

@@ -264,7 +264,8 @@ test('counts apart what a critical node owes to facts of a party to the conflict
   expect(corroborated.facts).toBe(0);
   expect(corroborated.condition.critical).toBe(0);
   expect(corroborated.members.critical).toBe(0);
-  // Only GUR ends the manager relation, so the vessel leaves the node m through a party fact.
+  // Only GUR ends the manager relation (the relation itself has an OFAC document). Without the
+  // party facts the vessel stays in the node m, so it leaves m only through a party fact.
   const ended = partyOnly({
     ...files,
     claims: [
