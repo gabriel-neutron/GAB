@@ -45,12 +45,13 @@ export const plusDays = (iso: string, days: number): string => {
   return day.toISOString().slice(0, 10);
 };
 
-/** Each distinct day of the Official Journal that the passage writes: "OJ L, 22.9.2026",
- * "OJ L 229, 31.7.2014" or "OJ L, 2024/1745, 24.6.2024". */
+/** Each distinct day of the page line of an act of the Official Journal: "OJ L, 22.9.2026". A
+ * citation of another act holds a number ("OJ L 229, 31.7.2014, p. 1" or
+ * "OJ L, 2024/1745, 24.6.2024"), so it gives no day: that day is not the day of this act. */
 const journalDays = (text: string): readonly string[] => {
   const days = new Set<string>();
   for (const found of text.matchAll(
-    /\bOJ\s+[LC](?:\s+\d+[A-Z]?)?,\s*(?:\d{4}\/\d+,\s*)?(\d{1,2})\.(\d{1,2})\.(\d{4})\b/gu,
+    /\bOJ\s+[LC],\s*(\d{1,2})\.(\d{1,2})\.(\d{4})\b(?!\s*,\s*p\.)/gu,
   )) {
     const day = isoDay(Number(found[3]), Number(found[2]), Number(found[1]));
     if (day !== null) days.add(day);

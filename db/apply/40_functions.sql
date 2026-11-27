@@ -3911,7 +3911,8 @@ BEGIN
     RAISE EXCEPTION 'the entity % is not in the graph', p_entity
       USING CONSTRAINT = 'target_exists';
   END IF;
-  IF public.name_key(v_label) = public.name_key(v_row.label) THEN
+  -- A change of the case, the accents or the signs is a correction too.
+  IF v_label = v_row.label THEN
     RAISE EXCEPTION 'the entity has this name already: "%"', v_row.label
       USING CONSTRAINT = 'rename_label';
   END IF;

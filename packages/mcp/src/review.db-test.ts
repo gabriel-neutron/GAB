@@ -1099,7 +1099,7 @@ test('rename_entity gives the current name, keeps the old one, and remove_act ta
       }),
       same: await call('rename_entity', {
         entityId: units.owner,
-        label: 'nordic holding',
+        label: 'Nordic Holding',
         keepAs: 'former_names',
         passage: fix('formerly Nordic Holding'),
         why: WHY,
@@ -1257,6 +1257,13 @@ test('retitle_document corrects a title and keeps its history; the bytes and the
     return {
       calls,
       row: await ask('SELECT title, s3_key FROM public.documents WHERE id = $1', [FIX]),
+      edit: await ask('SAVEPOINT edit')
+        .then(() => ask('UPDATE public.document_title_change SET after = before'))
+        .then(
+          () => 'updated',
+          (cause: unknown) => String(cause),
+        )
+        .finally(() => ask('ROLLBACK TO SAVEPOINT edit')),
       history: await ask(
         `SELECT before, after, origin, reason, citation->>'document' AS cited
            FROM public.document_title_change WHERE document_id = $1`,
@@ -1273,6 +1280,7 @@ test('retitle_document corrects a title and keeps its history; the bytes and the
   expect(found.row).toStrictEqual([
     { title: 'UK Sanctions List', s3_key: 'raw/ai-correction.txt' },
   ]);
+  expect(found.edit).toMatch(/never updated/u);
   expect(found.history).toStrictEqual([
     {
       before: 'Unique ID: AFG0001 - Entity',

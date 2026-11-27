@@ -16,7 +16,7 @@ test('an act in force on the day of its publication: the day of the Official Jou
 test('an act in force on the day after its publication, or the twentieth day after', () => {
   const next =
     'This Regulation shall enter into force on the day following that of its publication in ' +
-    'the Official Journal of the European Union. OJ L, 2024/1745, 24.6.2024';
+    'the Official Journal of the European Union. OJ L, 24.6.2024';
   expect(entryIntoForce(next)).toBe('2024-06-25');
   expect(endBeforeEntryIntoForce('2024-06-24', [next])).toBe(true);
   const twentieth = next.replace('the day following', 'the twentieth day following');
@@ -29,9 +29,20 @@ test('an act that names the day of its entry into force', () => {
   ).toBe('2025-03-01');
 });
 
-test('no day: two dates of the Official Journal, no date, no Official Journal, two passages', () => {
-  // A footnote cites an earlier act, so the day of publication is not known.
-  expect(entryIntoForce(`${ON_PUBLICATION} (1) OJ L 229, 31.7.2014, p. 1.`)).toBeNull();
+test('a citation of another act gives no day of publication', () => {
+  const article =
+    'This Regulation shall enter into force on the date of its publication in the Official Journal.';
+  expect(entryIntoForce(`${ON_PUBLICATION} (1) OJ L 229, 31.7.2014, p. 1.`)).toBe('2026-09-22');
+  expect(entryIntoForce(`${article} (1) OJ L 229, 31.7.2014, p. 1.`)).toBeNull();
+  expect(entryIntoForce(`${article} (1) OJ L, 2024/1745, 24.6.2024.`)).toBeNull();
+  expect(entryIntoForce(`${article} OJ L, 22.9.2026 (1) OJ L, 23.9.2026, p. 4.`)).toBe(
+    '2026-09-22',
+  );
+  // Two page lines with two days give no day.
+  expect(entryIntoForce(`${article} OJ L, 22.9.2026 and OJ L, 23.9.2026`)).toBeNull();
+});
+
+test('no day: no date, no Official Journal, two passages', () => {
   expect(
     entryIntoForce('shall enter into force on the date of its publication in the Official Journal'),
   ).toBeNull();

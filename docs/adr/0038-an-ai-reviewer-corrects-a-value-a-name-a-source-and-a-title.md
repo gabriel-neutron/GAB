@@ -32,8 +32,8 @@ passage, nothing is erased, and a removal is an act.
   and they link no value to one document. A machine cannot propose this act through the queue.
 - **A rename is two acts.** The reviewer gives the current name, which the cited passage must
   write, and the name before goes to the former names or to the aliases. The entity keeps its id
-  and the documents of its row. A name that another entity of the same type holds is refused,
-  because that is a join.
+  and the documents of its row. A change of the case or the accents is a rename too. A name that
+  another entity of the same type holds is refused, because that is a join.
 - **A source leaves a relation with its own act.** The relation keeps at least one source, and a
   start or an end keeps a document of its own act.
 - **A removal takes more acts.** It takes back a change of the values of a relation, a rename, a
@@ -47,8 +47,8 @@ passage, nothing is erased, and a removal is an act.
   writes the same history. A second change is the undo.
 - **An end can name its rule.** An end of a relation can say "the day before the entry into force".
   Code then computes the day from one cited passage of an EU act. The passage must hold the article
-  on the entry into force and, when the day counts from the publication, exactly one date of the
-  Official Journal. Each other end must be a day that a passage writes. The checker of the second
+  on the entry into force and, when the day counts from the publication, the one page line of the
+  act with its date in the Official Journal. A citation of another act gives no date. Each other end must be a day that a passage writes. The checker of the second
   model reads the rule with the act.
 - **The audit reads the level as the operator role.** The operator role reads each document and
   each text already, so the right to read the level adds no new read. The audit role of the
@@ -61,7 +61,7 @@ The expert panel (software architect and skeptic) agreed on this plan on 27 Nove
 - An operator who changes a list in the writer now adds values. To take one out, a reviewer acts.
 - A rename that is wrong needs two removals: the name and the old name in the list.
 - The rule of the end reads only the words of an EU act in English. An act of another issuer, or
-  a passage with two dates of the Official Journal, still needs a passage that writes the day.
+  a passage with two page lines of two days, still needs a passage that writes the day.
 
 ## Alternatives
 
