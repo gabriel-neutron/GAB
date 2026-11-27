@@ -40,6 +40,7 @@ import type { CheckVerdict } from '@gab/tools/tool';
 import {
   claimedDays,
   count,
+  countryCodes,
   nodeMembers,
   readRelease,
   replay,
@@ -88,6 +89,33 @@ export const reportEntityIds = (text: string): string[] =>
     .flatMap((one) => (one[1] ?? '').split(';'))
     .map((one) => one.trim())
     .filter((one) => one !== '');
+
+/** The report nodes that give no country (code XX) while the release gives a country of one of
+ * their entities (registration_jurisdiction or country). Each one is a fault of the node list. */
+export const reportCountryGaps = (text: string, claims: ReleaseFiles['claims']): string[] => {
+  const countries = new Map<string, string[]>();
+  for (const claim of claims) {
+    const name = claim['attribute'] ?? '';
+    if (claim['subject_kind'] === 'relation') continue;
+    if (name !== 'registration_jurisdiction' && name !== 'country') continue;
+    const subject = claim['subject_id'] ?? '';
+    countries.set(subject, [
+      ...(countries.get(subject) ?? []),
+      ...countryCodes(claim['value'] ?? ''),
+    ]);
+  }
+  const gaps: string[] = [];
+  for (const block of text.split(/(?=node_id: ')/u).slice(1)) {
+    const field = (key: string) => new RegExp(`${key}: '([^']*)'`, 'u').exec(block)?.[1] ?? '';
+    if (field('country_code') !== 'XX') continue;
+    const ids = field('record_entity_id')
+      .split(';')
+      .map((one) => one.trim());
+    const found = [...new Set(ids.flatMap((one) => countries.get(one) ?? []))].sort();
+    if (found.length > 0) gaps.push(`${field('node_id')} ${found.join(' ')}`);
+  }
+  return gaps;
+};
 
 export type Group = 'report' | 'critical' | 'other';
 
@@ -765,7 +793,8 @@ const main = async () => {
   mkdirSync(out, { recursive: true });
   const file = join(out, 'results.jsonl');
 
-  const reportEntities = reportEntityIds(readFileSync(REPORT_NODES, 'utf8'));
+  const reportText = readFileSync(REPORT_NODES, 'utf8');
+  const reportEntities = reportEntityIds(reportText);
   const { nodes: ordered, missingReportEntities } = auditOrder(files, reportEntities);
   const reportOnly = values['only-report-nodes']
     ? ordered.filter((one) => one.group === 'report')
@@ -811,6 +840,7 @@ const main = async () => {
         critical: counted.critical,
         reportNodes: ordered.filter((one) => one.group === 'report').length,
         missingReportEntities,
+        reportCountryGaps: reportCountryGaps(reportText, files.claims),
       })}\n`,
     );
   }
