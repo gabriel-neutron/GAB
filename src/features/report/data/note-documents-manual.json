@@ -395,6 +395,11 @@
     "reason": "CELEX 32026R0506"
   },
   {
+    "note": 42,
+    "url": "http://publications.europa.eu/resource/cellar/67350bea-86dd-11f1-bf5e-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R1848"
+  },
+  {
     "note": 43,
     "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
     "reason": "See n. 2"
@@ -1578,6 +1583,11 @@
     "note": 99,
     "url": "https://web.archive.org/web/20220613220804id_/https://www.gazprombank.ru/about/shareholders/",
     "reason": "archived Gazprombank shareholder pages"
+  },
+  {
+    "note": 100,
+    "url": "https://web.archive.org/web/20220113152812id_/https://en.transneft.ru/about/",
+    "reason": "Transneft, Company page, archived copy of 13 January 2022"
   },
   {
     "note": 101,
