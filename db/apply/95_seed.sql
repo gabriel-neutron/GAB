@@ -118,7 +118,17 @@ INSERT INTO document_level_rule (pattern, level, restricted, line) VALUES
   ('^https?://(www\.)?kremlin\.ru/acts/bank/', 'A', false, 'Kremlin bank of acts'),
   ('([/.@]|%(25)*2f)sudact\.ru\.*([:/?#]|%|$)', 'not_verified', true, 'Sudact arbitral acts'),
   ('govinfo\.gov\.*(/|%(25)*2f)[^?#]*USCOURTS', 'not_verified', true, 'GovInfo USCOURTS'),
-  ('([/.@]|%(25)*2f)reyestr\.court\.gov\.ua\.*([:/?#]|%|$)', 'C', true, 'Ukrainian court register')
+  ('([/.@]|%(25)*2f)reyestr\.court\.gov\.ua\.*([:/?#]|%|$)', 'C', true, 'Ukrainian court register'),
+  -- Migration 0103 holds the same rows.
+  ('^https?://search-uk-sanctions-list\.service\.gov\.uk/', 'A', false, 'UK Sanctions List and its notices'),
+  ('^https?://sanctionslist\.fcdo\.gov\.uk/docs/', 'A', false, 'UK Sanctions List and its notices'),
+  ('^https?://www\.gov\.uk/government/publications/the-uk-sanctions-list([/?#]|$)', 'A', false, 'UK Sanctions List and its notices'),
+  ('^https?://www\.gov\.uk/guidance/[a-z0-9-]+-list-of-designations-and-sanctions-notices([/?#]|$)', 'A', false, 'UK Sanctions List and its notices'),
+  ('^https?://www\.gov\.uk/government/(publications|collections)/(financial-sanctions-|ofsi-|enforcement-of-financial-sanctions([/?#]|$))', 'A', false, 'OFSI notices'),
+  ('^https?://assets\.publishing\.service\.gov\.uk/[^?#]*/Notice_[A-Za-z_]+_[0-9]{6}\.pdf$', 'A', false, 'OFSI notices'),
+  ('^https?://api\.gleif\.org/api/v1/lei-records/', 'A', false, 'GLEIF Level 1 and 2'),
+  ('^https?://goldencopy\.gleif\.org/storage/golden-copy-files/', 'A', false, 'GLEIF Level 1 and 2'),
+  ('^https?://sanctionssearch\.ofac\.treas\.gov/Details\.aspx\?id=[0-9]+$', 'A', false, 'OFAC SDN file, recent actions, enforcement PDFs')
 ON CONFLICT (pattern) DO UPDATE SET
   level = EXCLUDED.level,
   restricted = EXCLUDED.restricted,

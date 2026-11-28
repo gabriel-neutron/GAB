@@ -11,46 +11,60 @@ const REMOVE =
 
 const LISTS = ['aliases', 'former_names', 'flag_history', 'mmsi_history', 'call_sign'] as const;
 
+const scalar = z.union([z.string(), z.number(), z.boolean()]);
+
 const row = z.object({
   said: z.object({
     removal: z.uuid(),
-    entity: z.uuid(),
+    entity: z.uuid().optional(),
+    relation: z.uuid().optional(),
     name: z.string(),
-    left: z.array(z.union([z.string(), z.number(), z.boolean()])),
+    left: z.array(scalar),
   }),
 });
 
 export const removeValue = defineTool({
   name: 'remove_value',
   description:
-    'Removes one wrong value from a list of an accepted entity: an alias, a former name (also ' +
-    'one that a join added), a flag, an MMSI or a call sign. A change of these lists through ' +
-    'propose only adds values, so this is the one way to take a value out. Each copy of the ' +
-    'value leaves the list, and the other values keep their order. The documents of the list ' +
-    'stay. The record keeps the act with the origin "decided by an AI reviewer", your reason, ' +
-    'the cited passage and the list before, so remove_act puts the value back. Use it only when ' +
-    'a passage shows that the value is wrong. Read the entity first (read_entity). Never remove ' +
-    'a value that you proposed: a new reviewer agent decides it.',
-  input: z.strictObject({
-    entityId: z.uuid().describe('the id of the entity, from read_entity'),
-    key: z.enum(LISTS).describe('the list that holds the wrong value'),
-    value: z
-      .union([z.string().min(1), z.number()])
-      .describe('the wrong value, as read_entity gives it'),
-    passage,
-    why,
-  }),
+    'Removes one wrong value from an accepted entity or relation. For an entity, the value ' +
+    'leaves a list: an alias, a former name (also one that a join added), a flag, an MMSI or a ' +
+    'call sign. For a relation, the value leaves one attribute key, and the relation stays: use ' +
+    'it when a source gives the value for all the relations of a party, and not for this one. A ' +
+    'change through propose only adds values, so this is the one way to take a value out. Each ' +
+    'copy of the value leaves, and the other values keep their order. The documents stay. The ' +
+    'record keeps the act with the origin "decided by an AI reviewer", your reason, the cited ' +
+    'passage and the value before, so remove_act puts the value back. Use it only when a passage ' +
+    'shows that the value is wrong. Read the entity first (read_entity). Give entityId or ' +
+    'relationId, not both. Never remove a value that you proposed: a new reviewer agent decides it.',
+  input: z
+    .strictObject({
+      entityId: z.uuid().optional().describe('the id of the entity, from read_entity'),
+      relationId: z.uuid().optional().describe('the id of the relation, from read_entity'),
+      key: z
+        .string()
+        .min(1)
+        .describe(`the key that holds the wrong value; for an entity, one of ${LISTS.join(', ')}`),
+      value: z
+        .union([z.string().min(1), z.number()])
+        .describe('the wrong value, as read_entity gives it'),
+      passage,
+      why,
+    })
+    .refine((input) => (input.entityId === undefined) !== (input.relationId === undefined), {
+      error: 'give an entityId or a relationId',
+    }),
   output: z.strictObject({
     removal: z.uuid(),
-    entity: z.uuid(),
+    entity: z.uuid().optional(),
+    relation: z.uuid().optional(),
     name: z.string(),
-    left: z.array(z.union([z.string(), z.number(), z.boolean()])),
+    left: z.array(scalar),
     origin,
   }),
   run: async (session, input) => {
     const cited = await citationOf(session, input.passage);
     const [held] = await rowsOf(session, row, REMOVE, [
-      input.entityId,
+      input.entityId ?? input.relationId,
       input.key,
       JSON.stringify(input.value),
       JSON.stringify(cited),
