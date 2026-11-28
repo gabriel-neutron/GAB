@@ -53,7 +53,7 @@ describe('the description of the node panel', () => {
     // VEB.RF has no country in the data. The report defines no evidence score, so none shows.
     expect(reportGraph.node('N-O002')?.country).toBe('');
     expect(description('N-O002')).toBe('');
-    expect(description('N-P001')).not.toContain('11');
+    expect(description('N-P001')).not.toMatch(/evidence|score|of 11/i);
   });
 });
 

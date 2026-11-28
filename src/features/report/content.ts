@@ -1812,36 +1812,6 @@ export const figureTexts = {
         'Destination inconnue': 'Unknown destination',
       },
     },
-    '8': {
-      panels: [],
-      note: 'Census of the {F.census.read} designated tankers of the database, of which {F.census.ais} have an AIS identity; each share counts the vessels tracked long enough (6, 12 or 24 months before 26 October 2026). The {lanesN} vessels of the timeline are examples chosen to show each profile. Bars: AIS identity according to the register dates (leads). A new identity not linked to the IMO number leaves the tracking: the calls after the designation are minimums. The calls in the EU count the {F.census.ais} vessels, of which only {F.census.fol24} are tracked 24 months ({F.census.eu24b} before, {F.census.eu24a} after for these).',
-      labels: {
-        'perdent dans les 12 mois leur identité AIS liée au numéro OMI (navires suivis 12 mois)':
-          'lose within 12 months their AIS identity linked to the IMO number (vessels tracked 12 months)',
-        'font encore escale 6 mois ou plus après leur désignation (suivis 6 mois)':
-          'still make port calls 6 months or more after their designation (tracked 6 months)',
-        'font encore escale 12 mois ou plus après leur désignation (suivis 12 mois)':
-          'still make port calls 12 months or more after their designation (tracked 12 months)',
-        'font escale dans un port de l’UE : 6 mois avant, puis 24 mois après leur désignation (un minimum)':
-          'call at an EU port: 6 months before, then 24 months after their designation (a minimum)',
-        'sur {n}': 'of {n}',
-        'Chiffres : les {ais} pétroliers désignés qui ont une identité AIS. Frise : {lanesN} navires, exemples de chaque profil.':
-          'Figures: the {ais} designated tankers that have an AIS identity. Timeline: {lanesN} vessels, examples of each profile.',
-        'pavillon russe': 'Russian flag',
-        'autre pavillon (code ISO)': 'other flag (ISO code)',
-        'hors de la période lue': 'outside the period read',
-        'changement de pavillon (piste)': 'change of flag (lead)',
-        'Escales :': 'Port calls:',
-        'au-dessus : port russe': 'above: Russian port',
-        'au-dessous : autre port': 'below: other port',
-        'triangle : port de l’UE': 'triangle: EU port',
-        '{m} mois': '{m} months',
-        désignation: 'designation',
-        '+6 mois': '+6 months',
-        '+12 mois': '+12 months',
-        'aucune identité AIS suivie': 'no AIS identity tracked',
-      },
-    },
     '9': {
       panels: [
         {
