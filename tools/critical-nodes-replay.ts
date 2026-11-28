@@ -1,6 +1,6 @@
 // Counts the critical nodes of the report on a data release, read only.
 //
-// The count of the report is the result of this script on the release `data-2026-10-28`, the
+// The count of the report is the result of this script on the release `data-2026-11-28`, the
 // release that the report names. No database is necessary: the script downloads the release,
 // checks its SHA-256 and reads entities.csv, relations.csv and claims.csv. Only the release counts:
 // a node that the release does not hold is not in the count.
@@ -45,8 +45,8 @@ import { fetchDataRelease } from './data-release.ts';
  * release in tools/data-release.ts; this pin stays on the release of the report when the site
  * moves to a newer one. */
 export const REPORT_RELEASE = {
-  tag: 'data-2026-10-28',
-  sha256: '8896410d0eaea285c72e28798ae1fa7c5ea57d0f369dad3791c0acda04101084',
+  tag: 'data-2026-11-28',
+  sha256: 'd3ff53727765144efd67281dc2f9573dce395860116b43bf5d70c913d4c98524',
 } as const;
 
 /** A country that applies the sanctions of the coalition (the EU, the United States, the United
@@ -61,8 +61,14 @@ const TARGET = 'RU';
 const FROM = '2024-01-01';
 const TO = '2026-12-31';
 
-/** The attributes that give the country of an entity. An address or a name does not count. */
-const COUNTRY_ATTRIBUTES = new Set(['registration_jurisdiction', 'country', 'flag_history']);
+/** The attributes that give the country of an entity. An address or a name does not count. A
+ * vessel holds its current flag in `flag` and its former flags in `flag_history`. */
+const COUNTRY_ATTRIBUTES = new Set([
+  'registration_jurisdiction',
+  'country',
+  'flag',
+  'flag_history',
+]);
 
 /** The relations that do not make a counterparty: a legal act, a structure of the state, or a
  * relation with no stated type. */

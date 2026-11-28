@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { checkReport, noteIdentifiers, notesOf } from './report-excerpt-check.ts';
+import { checkReport, holds, noteIdentifiers, notesOf } from './report-excerpt-check.ts';
 
 const claim = (over: Record<string, string>) => ({
   claim_id: '',
@@ -118,4 +118,80 @@ test('reads the identifiers and the notes of the text', () => {
     'RUS1126',
   ]);
   expect([...notesOf('Text.[^4]\n\n[^4]: A note.\n')]).toEqual([['4', 'A note.']]);
+});
+
+test('a name holds in any case at a word edge, and a short value does not hold inside a word', () => {
+  expect(holds('128. PJSC SOVCOMFLOT', 'Sovcomflot')).toBe(true);
+  expect(holds('Russian Federation', 'RU')).toBe(false);
+  expect(holds('flag: RU', 'ru')).toBe(true);
+});
+
+test('a condition reads each of its documents, and two excerpts of one page read together only with an identifier', () => {
+  const twoPages = {
+    entities: [
+      { id: 'ship', label: 'KAROL' },
+      { id: 'firm', label: 'TEST MANAGER LLC' },
+      { id: 'other', label: 'OTHER LTD' },
+    ],
+    relations: [],
+    claims: [
+      claim({
+        claim_id: 'i',
+        claim_kind: 'attribute',
+        subject_id: 'ship',
+        attribute: 'imo',
+        value: '9327413',
+        document_id: 'doc_9',
+        excerpt: 'IMO 9327413',
+      }),
+      claim({
+        claim_id: 'r',
+        subject_id: 'firm',
+        relation_type: 'operates',
+        object_id: 'ship',
+        document_id: 'doc_8',
+        excerpt: 'IMO 9327413',
+      }),
+      claim({
+        claim_id: 'r',
+        subject_id: 'firm',
+        relation_type: 'operates',
+        object_id: 'ship',
+        document_id: 'doc_8',
+        excerpt: 'Manager: TEST MANAGER LLC',
+      }),
+      claim({
+        claim_id: 'o',
+        subject_id: 'other',
+        relation_type: 'owns',
+        object_id: 'firm',
+        document_id: 'doc_7',
+        excerpt: 'OTHER LTD',
+      }),
+      claim({
+        claim_id: 'o',
+        subject_id: 'other',
+        relation_type: 'owns',
+        object_id: 'firm',
+        document_id: 'doc_7',
+        excerpt: 'TEST MANAGER LLC',
+      }),
+    ],
+  };
+  const checks = checkReport(twoPages, {
+    nodes: [
+      node('N-1', 'firm', {
+        cond2_active_state: 'record',
+        cond2_doc: 'doc_5; doc_8',
+        cond3_third_country_state: 'record',
+        cond3_doc: 'doc_7',
+      }),
+    ],
+    edges: [],
+    notes: new Map(),
+    noteDocuments: new Map(),
+  });
+  expect(
+    checks.filter((one) => one.fact === 'condition').map((one) => `${one.ref} ${one.verdict}`),
+  ).toEqual(['N-1/cond2 pass', 'N-1/cond3 fail']);
 });
