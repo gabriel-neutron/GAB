@@ -147,12 +147,8 @@ export function NodeRef({ id, children, side = 'top' }: NodeRefProps) {
           {node.type}
           {node.country === '' ? null : ` · ${node.country}`}
         </p>
-        <dl className="grid grid-cols-3 gap-2 border-t border-divider pt-2">
+        <dl className="grid grid-cols-2 gap-2 border-t border-divider pt-2">
           {[
-            // A node with no evidence score shows no score field.
-            ...(node.evidence_score_0_11 === ''
-              ? []
-              : [[ui.node.evidence, `${node.evidence_score_0_11} ${ui.node.outOf}`]]),
             [ui.node.relations, relations],
             [ui.node.documents, documents],
           ].map(([term, value]) => (

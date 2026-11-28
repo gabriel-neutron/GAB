@@ -1470,7 +1470,7 @@ export const figureTexts = {
       },
       {
         letter: 'c',
-        title: 'Goes through a third country',
+        title: 'Tied to a third country',
         text: 'seat, flag or counterparty outside the coalition',
       },
     ],
@@ -1490,6 +1490,12 @@ export const figureTexts = {
   },
   fig2: {
     events: [
+      {
+        date: '2014-02',
+        actor: 'WAR',
+        title: 'Invasion of Crimea',
+        detail: '',
+      },
       {
         date: '2014-03-17',
         actor: 'EU',
@@ -1512,13 +1518,13 @@ export const figureTexts = {
         date: '2022-06-03',
         actor: 'EU',
         title: 'Oil embargo',
-        detail: 'seaborne crude',
+        detail: 'crude by sea',
       },
       {
         date: '2022-12-05',
         actor: 'COAL',
         title: 'Price cap',
-        detail: '$60 per barrel',
+        detail: '$60 a barrel',
       },
       {
         date: '2023-02-05',
@@ -1529,7 +1535,7 @@ export const figureTexts = {
       {
         date: '2023-10-12',
         actor: 'US',
-        title: 'Enforcement of the cap',
+        title: 'Cap enforcement',
         detail: 'shipowners designated',
       },
       {
@@ -1542,7 +1548,7 @@ export const figureTexts = {
         date: '2025-09-03',
         actor: 'EU',
         title: 'Cap lowered',
-        detail: '$47.6 per barrel',
+        detail: '$47.6 a barrel',
       },
       {
         date: '2025-10-22',
@@ -1554,12 +1560,12 @@ export const figureTexts = {
         date: '2026-02-01',
         actor: 'EU',
         title: 'Cap lowered',
-        detail: '$44.1 per barrel',
+        detail: '$44.1 a barrel',
       },
       {
         date: '2026-04-24',
         actor: 'EU',
-        title: 'New ports',
+        title: 'New ports sanctioned',
         detail: 'Tuapse, Murmansk',
       },
     ],
@@ -1603,7 +1609,7 @@ export const figureTexts = {
         'Actif en 2024-2026': 'Active in 2024-2026',
         'production, transit ou désignation nouvelle, datés':
           'production, transit or new designation, dated',
-        'Passe par un pays tiers': 'Goes through a third country',
+        'Passe par un pays tiers': 'Tied to a third country',
         'siège, pavillon ou contrepartie hors de la coalition':
           'seat, flag or counterparty outside the coalition',
       },
@@ -1622,21 +1628,21 @@ export const figureTexts = {
         'banques, pétrole, double usage': 'banks, oil, dual use',
         'Invasion de l’Ukraine': 'Invasion of Ukraine',
         'Embargo pétrolier': 'Oil embargo',
-        'brut par mer': 'seaborne crude',
+        'brut par mer': 'crude by sea',
         'Plafond de prix': 'Price cap',
-        '60 $ le baril': '$60 per barrel',
+        '60 $ le baril': '$60 a barrel',
         'Produits pétroliers': 'Oil products',
         'embargo et plafonds': 'embargo and caps',
-        'Contrôle du plafond': 'Enforcement of the cap',
+        'Contrôle du plafond': 'Cap enforcement',
         'armateurs désignés': 'shipowners designated',
         'Ports interdits': 'Ports banned',
         'Primorsk, Novorossiisk, Oust-Louga': 'Primorsk, Novorossiysk, Ust-Luga',
         'Plafond abaissé': 'Cap lowered',
-        '47,6 $ le baril': '$47.6 per barrel',
+        '47,6 $ le baril': '$47.6 a barrel',
         'Rosneft et Lukoil': 'Rosneft and Lukoil',
         désignés: 'designated',
-        '44,1 $ le baril': '$44.1 per barrel',
-        'Nouveaux ports': 'New ports',
+        '44,1 $ le baril': '$44.1 a barrel',
+        'Nouveaux ports': 'New ports sanctioned',
         'Touapsé, Mourmansk': 'Tuapse, Murmansk',
       },
     },
@@ -1704,7 +1710,7 @@ export const figureTexts = {
           unit: 'trillion 2021 roubles',
         },
       ],
-      note: 'Constant prices: values divided by the GDP deflator (base 2021). Defence: section “National defence” of the budget; the ministry no longer publishes the detail since 2022; 2022 according to Reuters, 2024 and 2025: planned budget.',
+      note: 'Constant prices: values divided by the GDP deflator (base 2021). Defence: section “National defence” of the budget; the ministry no longer publishes the detail since 2022; 2022 according to Reuters; 2023 and 2024: SIPRI estimates; 2025: planned budget.',
       labels: {
         'a. Part du pétrole et du gaz dans les recettes': 'a. Share of oil and gas in revenue',
         'b. Recettes du pétrole et du gaz, et défense': 'b. Oil and gas revenue, and defence',
@@ -1714,13 +1720,12 @@ export const figureTexts = {
         'janv.-sept.': 'Jan.-Sept.',
         'janv.-sept. 2025 : {v} %': 'Jan.-Sept. 2025: {v}%',
         'Pétrole et gaz': 'Oil and gas',
-        'Défense (prévu)': 'Defence (planned)',
+        'Défense (prévu)': 'Defence (estimate or plan)',
         Défense: 'Defence',
-        '2023 : pas de chiffre': '2023: no figure',
         'année entière': 'full year',
         'janvier-septembre (2026 provisoire)': 'January-September (2026 provisional)',
-        'point vide : budget prévu ; 2022 d’après Reuters':
-          'hollow point: planned budget; 2022 according to Reuters',
+        'point vide : estimation ou budget prévu ; 2022 d’après Reuters':
+          'hollow point: 2023 and 2024: SIPRI estimates; 2025: planned budget. 2022 according to Reuters',
       },
     },
     '6': {
@@ -1770,25 +1775,8 @@ export const figureTexts = {
           title: 'Seaborne oil, January 2026',
           unit: 'thousand barrels per day (kb/d)',
         },
-        {
-          id: 'b1',
-          title: 'PIPELINE GAS',
-          unit: 'bcm',
-        },
-        {
-          id: 'b2',
-          title: 'LIQUEFIED NATURAL GAS',
-          unit: 'Mt',
-        },
-        {
-          id: 'c',
-          title: 'PIPELINE CRUDE',
-          unit: 'Mt',
-        },
       ],
       note: '“Other countries” is a balance calculated by the authors.',
-      noteB:
-        'Gas to the EU: EU and South-East Europe (TurkStream). Crude to the EU: Druzhba south, through Ukraine. Druzhba north: no more Russian crude to Poland and Germany since 2023 (Reuters, 2023); to Belarus, 2025 volume not documented. “Other countries” is a balance calculated by the authors. Pipeline gas and LNG do not add up: no conversion factor is recorded. Hatching: designated project (Arctic LNG 2, designated by OFAC and the United Kingdom).',
       labels: {
         'a. Pétrole par mer, janvier 2026': 'a. Seaborne oil, January 2026',
         'milliers de barils par jour (kb/j)': 'thousand barrels per day (kb/d)',
@@ -1808,7 +1796,7 @@ export const figureTexts = {
         'Produits · mer Noire': 'Products · Black Sea',
         'Produits · Pacifique': 'Products · Pacific',
         'Produits · Arctique': 'Products · Arctic',
-        '« Flotte fantôme »': '“Shadow fleet”',
+        '« Flotte fantôme »': 'Shadow fleet',
         'Assurés IG': 'IG-insured',
         'Coalition, sans assurance IG': 'Coalition, no IG cover',
         'Brut par mer': 'Seaborne crude',
@@ -1820,24 +1808,6 @@ export const figureTexts = {
         Brésil: 'Brazil',
         'Autres pays': 'Other countries',
         'Destination inconnue': 'Unknown destination',
-        'GAZ PAR GAZODUC': 'PIPELINE GAS',
-        'GAZ NATUREL LIQUÉFIÉ': 'LIQUEFIED NATURAL GAS',
-        'BRUT PAR OLÉODUC': 'PIPELINE CRUDE',
-        'Md m³': 'bcm',
-        UE: 'EU',
-        'Chine, Japon, Corée du Sud (non ventilé)': 'China, Japan, South Korea (not broken down)',
-        'antenne ESPO :': 'ESPO spur:',
-        'flux 2025 non documenté (capacité {v} Mt/an)':
-          '2025 flow not documented (capacity {v} Mt/year)',
-        ' (désigné)': ' (designated)',
-        'TurkStream et Blue Stream': 'TurkStream and Blue Stream',
-        'Force de Sibérie': 'Power of Siberia',
-        'UE et Europe du Sud-Est': 'EU and South-East Europe',
-        'Asie (Chine, Japon, Corée du Sud)': 'Asia (China, Japan, South Korea)',
-        'Droujba sud (via l’Ukraine)': 'Druzhba south (via Ukraine)',
-        Slovaquie: 'Slovakia',
-        Hongrie: 'Hungary',
-        Tchéquie: 'Czechia',
       },
     },
     '8': {
@@ -1962,7 +1932,7 @@ export const figureTexts = {
         'État russe': 'Russian State',
         'propriétaire non nommé': 'owner not named',
         'possède ou exploite les navires de {n} armateurs ou gestionnaires :':
-          'owns or operates the vessels of {n} shipowners or managers, according to GUR, a party to the conflict:',
+          'owns or operates the vessels of {n} shipowners or managers, according to the sanctions lists and, for part of them, GUR, a party to the conflict:',
         'État et sociétés d’État': 'State and state companies',
         personnes: 'persons',
         sociétés: 'companies',
@@ -2066,7 +2036,7 @@ export const figureTexts = {
     'dont 17 % supplémentaires achetés à G. Timtchenko (part totale non chiffrée)':
       'of which a further 17% bought from G. Timchenko (total stake not quantified)',
     'structure jamais publiée en entier': 'structure never published in full',
-    '11 navires': '11 vessels',
+    '12 navires': '12 vessels',
     '10 navires': '10 vessels',
     '9 navires': '9 vessels',
     '8 navires': '8 vessels',
@@ -2120,7 +2090,6 @@ export const ui = {
   counters: {
     // The accessible name of the counts in the annex.
     label: 'Scale of the research',
-    nodes: 'Entities',
     relations: 'Relations',
     documents: 'Documents',
     sources: 'Notes',
@@ -2136,8 +2105,6 @@ export const ui = {
   },
   node: {
     open: 'Open the record',
-    evidence: 'Evidence score',
-    outOf: 'of 11',
     relations: 'Relations',
     documents: 'Documents',
   },
@@ -2167,7 +2134,7 @@ export const ui = {
     image: 'Image',
   },
   index: {
-    title: 'All entities of the report',
+    title: 'Entities named in the report',
     // The layer of the data, and its name on the page.
     layers: [
       { layer: 'Pay', label: 'Pay' },
@@ -2300,11 +2267,9 @@ export const openingUi = {
 export const methodUi = {
   layers: {
     label: 'Layers',
-    unit: 'Entities of the page data, one square for each entity',
-    // The figure counts the nodes of the report, so its period is the period of the report.
+    unit: 'Diagram, no count',
+    // The period of the three conditions, which is the period of the report.
     period: '2024-2026',
-    inData: 'In the page data, three conditions documented',
-    examined: 'In the page data, fewer than three conditions documented',
     open: 'Open the entities of the page data',
     conditions: 'Three conditions of an entity under watch',
     // The arrows and the budget path show the argument of the report; no edge of the data backs them.
@@ -2316,11 +2281,9 @@ export const methodUi = {
     period: 'The years 2024-2026',
     gap: '2015-2021: no event in this figure',
     unit: 'Event, dated',
-    actors: { COAL: 'COALITION' } as Readonly<Partial<Record<string, string>>>,
+    actors: { COAL: 'COALITION', US: 'OFAC' } as Readonly<Partial<Record<string, string>>>,
     cursor: 'Time cursor: event',
-    counters:
-      "Tankers designated by each regime to the end of the quarter of the event. Data: the sanctions lists of the EU, the UK and OFAC; authors' calculations",
-    table: 'Events and tankers designated, as a table',
+    table: 'Events, as a table',
     date: 'Date',
     event: 'Event',
   },
@@ -2388,6 +2351,7 @@ export const portsFleetUi = {
       'N-P005': 'February 2025',
       'N-P011': 'April 2026',
       'N-P009': 'April 2026',
+      'N-P012': 'July 2026',
     },
     pacific: 'Crude export ports on the Baltic, the Black Sea and the Pacific',
     change: 'Traffic, January-April 2026 / January-April 2025, change in %',
@@ -2412,11 +2376,11 @@ export const portsFleetUi = {
     data: 'Data:',
     basemap: 'Basemap:',
     // The dates of the ban step come from the text of the part. The Pacific step has no note.
-    banSource: 'Dates: text of the report, note 42 (February 2025 to April 2026)',
+    banSource: 'Dates: text of the report, note 42 (February 2025 to July 2026)',
     schematic:
       'Schematic: each column stands above its sea and gives the basin total, not the volume of a terminal.',
     fleetTags: {
-      '“Shadow fleet”': 'shadow fleet',
+      'Shadow fleet': 'shadow fleet',
       'IG-insured': 'IG',
       'Coalition, no IG cover': 'coalition',
     },
@@ -2434,7 +2398,12 @@ export const portsFleetUi = {
     to: 'To',
     value: 'Value',
     state: 'State',
-    notDocumented: 'not documented',
+  },
+  // The table of figure 8: one row for each series of the data.
+  calls: {
+    item: 'Item',
+    value: 'Tankers',
+    euPort: 'EU or UK port',
   },
   lives: {
     period: '6 months before to 24 months after each designation',
@@ -2650,9 +2619,10 @@ export const ownershipUi = {
     checked: 'checked against the record on {date}',
     // The day of a share in the record, after the share.
     asOf: 'on {date}',
-    // A row whose holding the owners figure does not have in the layer of the site.
+    // A row whose holding the controllers data (controllers.csv) does not have in the layer of the
+    // site. Figure 12 does not make this test.
     outsideFigure:
-      'Figure 12 has no entity of this layer under this holding; the record documents this holder.',
+      'The controllers data of the map has no entity of this layer under this holding; the record documents this holder.',
     mapLabel: 'Map of the sites of the report, by the controller of their holder',
     table: 'The sites of the map, as a table',
     rows: '{n} rows',

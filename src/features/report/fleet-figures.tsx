@@ -40,7 +40,8 @@ export function FleetPortsFigure() {
     TOP = 104;
   const height = TOP + countries.length * 22 + 58;
   return (
-    <figure className="report-chart">
+    // A div, not a figure: the report page puts this chart in its own figure frame.
+    <div className="report-chart">
       <svg
         viewBox={`0 0 640 ${height}`}
         role="img"
@@ -73,7 +74,7 @@ export function FleetPortsFigure() {
           {euPorts.slice(5).join(' · ')}
         </text>
       </svg>
-    </figure>
+    </div>
   );
 }
 

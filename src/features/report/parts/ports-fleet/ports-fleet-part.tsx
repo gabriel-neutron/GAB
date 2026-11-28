@@ -10,15 +10,16 @@ import { StickyScene } from '../../primitives/sticky-scene';
 import { reportAddress } from '../../report-context';
 import { RichText } from '../../rich-text';
 import { useContent } from '../../use-content';
-import { figureData } from './figure-data';
 import { FleetFlows } from './fleet-flows';
 import { REGIMES, selectWaves } from './fleet-waves';
 import { FleetWavesFigure } from './fleet-waves-figure';
 import { PortTraffic } from './port-traffic';
 import { portVisits } from './port-visits';
 import { splitSentences } from './sentences';
-import { VesselLives } from './vessel-lives';
 import { visitLayer } from './visit-layer';
+import { FleetPortsFigure } from '../../fleet-figures';
+import portsRaw from '../../data/fleet-ports.csv?raw';
+import { readCsv } from '../../line-panel';
 import './map-scene.css';
 
 import type { MapSources } from './port-map';
@@ -29,17 +30,51 @@ const PortMap = lazy(() => import('./port-map').then((module) => ({ default: mod
 const VISITS_ON = portVisits.on(import.meta.env);
 
 const PROSE = 'max-w-[64ch] text-report-body/[1.65]  lg:ml-[25%]';
-const census = figureData.lives.census;
-const values: Readonly<Record<string, number>> = {
-  'F.census.read': census.read,
-  'F.census.ais': census.ais,
-  'F.census.fol24': census.fol24,
-  'F.census.eu24b': census.eu24b,
-  'F.census.eu24a': census.eu24a,
-  lanesN: figureData.lives.groups.reduce((sum, group) => sum + group.lanes.length, 0),
-};
-const fill = (text: string) =>
-  text.replace(/\{([^}]+)\}/g, (whole, key: string) => String(values[key] ?? whole));
+// The data of figure 8, as its table gives it.
+const portCalls = readCsv(portsRaw);
+
+/** Figure 8, the same chart as the PDF. Its classes have their styles only in the report.css of
+ * the PDF figures, so this box gives them the tokens of the page. */
+function PortCalls() {
+  const { portsFleetUi: copy } = useContent();
+  // The series of the data: a total, a port country ("country:") or an EU or UK port ("eu port:").
+  const nameOf = (series: string) =>
+    series.startsWith('country:')
+      ? series.slice(8)
+      : series.startsWith('eu port:')
+        ? `${copy.calls.euPort}: ${series.slice(8)}`
+        : series;
+  return (
+    <>
+      <div className="max-w-[640px] [&_.lp-axis]:fill-label [&_.lp-axis]:font-mono [&_.lp-axis]:text-[11px] [&_.lp-label]:fill-label [&_.lp-label]:font-mono [&_.lp-label]:text-[11px] [&_.lp-series_.flow-name.lp-label]:fill-foreground [&_.new_.lp-bar]:fill-signal [&_.new_.lp-label]:fill-signal [&_.old_.lp-bar]:fill-foreground [&_.old_.lp-label]:fill-foreground [&_.plot-grid]:stroke-chart-grid [&_.vessel-count]:fill-foreground [&_.vessel-count]:text-[28px] [&_svg]:block [&_svg]:w-full">
+        <FleetPortsFigure />
+      </div>
+      <details className="mt-6 border-t border-border pt-3">
+        <summary className="flex min-h-11 cursor-pointer items-center font-mono text-report-label text-label">
+          {copy.flows.table}
+        </summary>
+        <div className="overflow-x-auto">
+          <table className="mt-2 w-full text-left font-mono text-report-label">
+            <thead className="text-label uppercase">
+              <tr>
+                <th className="py-1 pr-4 font-normal">{copy.calls.item}</th>
+                <th className="py-1 text-right font-normal">{copy.calls.value}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {portCalls.map((row) => (
+                <tr key={row['series']} className="border-t border-divider">
+                  <td className="py-1 pr-4">{nameOf(row['series'] ?? '')}</td>
+                  <td className="py-1 text-right tabular-nums">{row['value']}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </>
+  );
+}
 // The cards of the map scene: a range of sentences of a paragraph (its place in the blocks), and
 // the state of the map that the card sets: 0 the port ban, 1 the export ports, 2 the change of
 // traffic, 3 the flows by fleet. The blocks before the last card are the scene; a heading among
@@ -68,7 +103,7 @@ const SCENE_END = Math.max(...SCENE.map((card) => card.block));
 const charts: Readonly<Partial<Record<number, () => ReactNode>>> = {
   6: PortTraffic,
   7: FleetFlows,
-  8: VesselLives,
+  8: PortCalls,
   9: FleetWavesFigure,
 };
 const waves = selectWaves(new Set(REGIMES));
@@ -83,25 +118,21 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const reduce = useReduceMotion();
   const figureOf = (n: number) => part.blocks.find((block) => block.figure?.number === n)?.figure;
-  // Figure 6 has one unit for each panel: a, b, then c. Figure 7 has one unit for each kind of
-  // panel. The two notes of a figure of the PDF read as one note under the chart.
+  // Figure 6 has one unit for each panel: a, b, then c. The two notes of a figure of the PDF read
+  // as one note under the chart. Figure 8 has no note other than its sources, as in the PDF.
   const units: Readonly<Partial<Record<number, string>>> = {
     6: [...texts['6'].panels.map((panel) => panel.unit), copy.traffic.cUnit]
       .filter((one) => one !== '')
       .join(' · '),
-    7: [...new Set(texts['7'].panels.map((panel) => panel.unit))]
-      .filter((one) => one !== '')
-      .join(' · '),
+    7: texts['7'].panels[0]?.unit,
     9: copy.waves.unit,
   };
   const periods: Readonly<Partial<Record<number, string>>> = {
-    8: copy.lives.period,
     9: `${waves.quarters[0]?.quarter ?? ''} – ${waves.end}`,
   };
   const notes: Readonly<Partial<Record<number, string>>> = {
     6: `${texts['6'].note} ${texts['6'].noteB}`,
-    7: `${texts['7'].note} ${texts['7'].noteB}`,
-    8: fill(texts['8'].note),
+    7: texts['7'].note,
   };
   const say = (text: string) => <RichText text={text} partSlug={part.slug} />;
   // Each card holds whole sentences of a paragraph, in their order, and sets one state of the map.

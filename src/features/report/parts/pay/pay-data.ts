@@ -92,7 +92,7 @@ export const payData = {
     ),
     // Billion roubles of 2021 in the data, trillion in the figure.
     revenue: yearly(figures.f5.rev, 2014, 2025, [], 1000),
-    defence: yearly(figures.f5.def, 2014, 2025, PLAN, 1000),
+    defence: yearly(figures.f5.def, 2014, 2025, [...ESTIMATE, ...PLAN], 1000),
   },
 } as const;
 

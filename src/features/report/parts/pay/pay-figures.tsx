@@ -481,7 +481,7 @@ const facts = (points: readonly Point[]) => points.map((point) => (point?.hollow
 const plans = (points: readonly Point[]) => points.map((point) => (point?.hollow ? point : null));
 
 /** Figure 5: the share of oil and gas in revenue, and the revenue against defence. The
- * January-September values and the planned budgets are hollow points; 2023 has no figure. */
+ * January-September values, the SIPRI estimates and the planned budgets are hollow points. */
 export function BudgetChart() {
   const f5 = useContent().figureTexts.figures['5'];
   const [a, b] = f5.panels;
@@ -559,23 +559,13 @@ export function BudgetChart() {
               ],
             }}
             layers={(scales) => ({
-              under: (
-                <>
-                  <EventRule at={INVASION} label={f5.labels.invasion} scales={scales} />
-                  <text
-                    x={scales.x(2023)}
-                    y={scales.bottom - 8}
-                    textAnchor="middle"
-                    className="fill-label"
-                  >
-                    {f5.labels['2023 : pas de chiffre']}
-                  </text>
-                </>
-              ),
+              under: <EventRule at={INVASION} label={f5.labels.invasion} scales={scales} />,
             })}
           />
         </div>
-        <p className={LEGEND}>{f5.labels['point vide : budget prévu ; 2022 d’après Reuters']}</p>
+        <p className={LEGEND}>
+          {f5.labels['point vide : estimation ou budget prévu ; 2022 d’après Reuters']}
+        </p>
       </div>
     </div>
   );

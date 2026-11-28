@@ -4,10 +4,10 @@ import { cn } from '@/shared/lib/utils';
 import { accent } from '../../primitives/accent';
 import { useContent } from '../../use-content';
 import { chartLayout } from './chart-layout';
-import { figureData, type Flow } from './figure-data';
+import { figureData } from './figure-data';
 import { useSize } from './use-size';
 
-const SHADOW = '“Shadow fleet”';
+const SHADOW = 'Shadow fleet';
 
 const COLUMNS = [
   ['Baltic', 'Black Sea', 'Pacific', 'Arctic']
@@ -55,7 +55,7 @@ function useFigure() {
 }
 
 /** Figure 7: seaborne oil in January 2026 as bands between neighbouring columns (loading basin,
- * fleet category, product, buyer), then gas and pipeline crude as bars. No band joins a fleet
+ * fleet category, product, buyer). No band joins a fleet
  * category to a buyer: no source links them. On a phone each stage is a row of bars. */
 export function FleetFlows() {
   const box = useRef<HTMLDivElement>(null);
@@ -89,18 +89,6 @@ export function FleetFlows() {
             <HorizontalFlow width={width} />
           )}
         </div>
-      </div>
-      <div className="grid gap-10 md:grid-cols-3">
-        {texts.panels
-          .filter((panel) => panel.id !== 'a')
-          .map((panel) => (
-            <BarPanel
-              key={panel.id}
-              title={panel.title}
-              unit={panel.unit}
-              rows={figureData.flows.filter((row) => row.panel === panel.id)}
-            />
-          ))}
       </div>
       <details className="border-t border-border pt-3">
         <summary className="flex min-h-11 cursor-pointer items-center font-mono text-report-label text-label">
@@ -276,97 +264,5 @@ function StageList() {
         </li>
       ))}
     </ol>
-  );
-}
-
-interface BarPanelProps {
-  readonly title: string;
-  readonly unit: string;
-  readonly rows: readonly Flow[];
-}
-
-const ESPO = 'ESPO spur Skovorodino-Mohe';
-const DESIGNATED_PROJECT = 'Arctic LNG 2 (Utrenneye)';
-
-function BarPanel({ title, unit, rows }: BarPanelProps) {
-  const { labels, copy, number } = useFigure();
-  const max = Math.max(...rows.map((row) => (row.from === ESPO ? 0 : (row.value ?? 0))));
-  return (
-    <div className="min-w-0 border-t border-foreground pt-3">
-      <p className="font-mono text-report-label uppercase text-foreground">
-        {labels[title] ?? title}
-      </p>
-      <p className="mb-4 font-mono text-report-label uppercase text-label">{unit}</p>
-      <ul className="grid gap-3">
-        {rows.map((row) => {
-          const espo = row.from === ESPO;
-          const hatched = row.from === DESIGNATED_PROJECT;
-          return (
-            <li key={`${row.from}-${row.to}`} className="min-w-0 font-mono text-report-label">
-              <p className="text-muted-foreground break-words">
-                {labels[row.from] ?? row.from}
-                {hatched ? labels[' (désigné)'] : ''} →{' '}
-                <span className="text-foreground">{labels[row.to] ?? row.to}</span>
-              </p>
-              {espo ? (
-                <p className="text-label">
-                  {labels['antenne ESPO :']}{' '}
-                  {(labels['flux 2025 non documenté (capacité {v} Mt/an)'] ?? '').replace(
-                    '{v}',
-                    String(row.value ?? ''),
-                  )}
-                </p>
-              ) : row.value === null ? (
-                <p className="text-label">{copy.notDocumented}</p>
-              ) : (
-                <div className="mt-1 flex items-center gap-2">
-                  <div className="relative h-2.5 min-w-0 flex-1">
-                    <motion.div
-                      aria-hidden="true"
-                      className={cn(
-                        'absolute inset-y-0 left-0 border border-foreground',
-                        hatched ? 'bg-transparent' : 'bg-foreground',
-                      )}
-                      style={{ width: `${String((row.value / max) * 100)}%`, originX: 0 }}
-                      initial={{ scaleX: 0 }}
-                      whileInView={{ scaleX: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
-                    >
-                      {hatched ? (
-                        <svg className="absolute inset-0 size-full">
-                          <defs>
-                            <pattern
-                              id="hatch-designated"
-                              width="5"
-                              height="5"
-                              patternUnits="userSpaceOnUse"
-                              patternTransform="rotate(45)"
-                            >
-                              <line
-                                x1="0"
-                                y1="0"
-                                x2="0"
-                                y2="5"
-                                className="stroke-foreground"
-                                strokeWidth="1.5"
-                              />
-                            </pattern>
-                          </defs>
-                          <rect width="100%" height="100%" fill="url(#hatch-designated)" />
-                        </svg>
-                      ) : null}
-                    </motion.div>
-                  </div>
-                  <span className="w-16 text-right text-foreground tabular-nums">
-                    {number.format(row.value)}
-                  </span>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
   );
 }

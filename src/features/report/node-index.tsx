@@ -21,7 +21,7 @@ const GLYPH = Object.fromEntries(
 ) as CSSProperties;
 
 // The entity or one of its relations cites a document of a state body of a party to the conflict.
-// The words state the origin of a document and rate no source; the node panel names the document.
+// The words state the origin of a document and rate no source; the entity panel names the document.
 const PARTY_WORDS =
   'The entity or one of its relations cites a document of a state body of a party to the conflict.';
 
@@ -41,20 +41,24 @@ function PartyMarks({ id }: { readonly id: string }) {
 export function NodeIndex() {
   const { ui } = useContent();
   return (
-    <section id="nodes" aria-labelledby="nodes-title" className="border-t border-border pt-6 pb-24">
-      <h2 id="nodes-title" className="text-report-heading text-balance ">
+    <section
+      id="entities"
+      aria-labelledby="entities-title"
+      className="border-t border-border pt-6 pb-24"
+    >
+      <h2 id="entities-title" className="text-report-heading text-balance ">
         {ui.index.title}
       </h2>
       <div className="mt-8 grid gap-12">
         {ui.index.layers.map(({ layer, label }) => {
           const nodes = reportGraph.layer(layer);
           return (
-            <section key={layer} aria-labelledby={`nodes-${layer}`}>
+            <section key={layer} aria-labelledby={`entities-${layer}`}>
               <h3
-                id={`nodes-${layer}`}
+                id={`entities-${layer}`}
                 className="font-mono text-report-label uppercase text-label"
               >
-                {label} · <span className="tabular-nums">{nodes.length}</span>
+                {label}
               </h3>
               <ol
                 // An underline shows on hover or focus only; a long name hangs past its glyph.
