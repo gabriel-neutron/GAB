@@ -31,6 +31,7 @@ interface Bibliography {
   readonly entryOf: (key: string) => Entry;
   readonly splitNote: (text: string) => { cite: string; note: string };
   readonly citeText: (text: string) => string;
+  readonly noteText: (text: string) => string;
   readonly citingNotes: (notes: Line[]) => ReadonlyMap<string, string[]>;
   readonly groupedEntries: () => readonly (readonly [string, readonly Entry[]])[];
 }
@@ -141,7 +142,8 @@ async function main(): Promise<void> {
   for (const call of calls) {
     const note = notes.get(call.id);
     if (note === undefined) throw new Error(`note ${call.id} has no note line`);
-    const { cite, note: short } = bib.splitNote(note);
+    const { cite } = bib.splitNote(note);
+    const short = bib.noteText(note);
     const marked = `## ${call.section}`.startsWith(MARKED);
     if (call.section !== section) {
       section = call.section;

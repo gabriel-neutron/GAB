@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   GROUPS,
   citeText,
+  locatorsOf,
+  MAX_CITE,
+  noteText,
   citingNotes,
   entries,
   groupedEntries,
@@ -39,11 +42,24 @@ describe('the references of the notes', () => {
     }
   });
 
-  it('show the short reference of each entry, with the locator that follows its key', () => {
+  it('show an APA author-year reference of 40 characters or fewer, with a page only', () => {
     expect(citeText('@kse-rot-feb26, p. 3')).toBe('Dodonov et al., 2026, p. 3');
-    expect(citeText("authors' calculations based on @comtrade | HS 2709.")).toBe(
-      "authors' calculations based on UN Comtrade, 2026",
+    expect(citeText('@bruegel-tracker, fig. 2')).toBe('Bahí Esteba et al., 2026');
+    // A calculation of the authors shows only its number: the numbered note gives the sources.
+    expect(citeText("authors' calculations based on @comtrade | HS 2709.")).toBe('');
+    expect(noteText("authors' calculations based on @comtrade | HS 2709.")).toBe(
+      "Authors' calculations based on UN Comtrade, 2026. HS 2709.",
     );
+    for (const note of notes) {
+      const cite = citeText(note.text);
+      expect(cite.length + 2).toBeLessThanOrEqual(MAX_CITE);
+      expect(cite.split('; ').length).toBeLessThanOrEqual(3);
+      // A note line with no reference in the text has a numbered note.
+      if (cite === '') expect(noteText(note.text)).not.toBe('');
+    }
+    expect(locatorsOf([{ text: '@eu-833-2014, Annex IV' }]).get('eu-833-2014')).toEqual([
+      'Annex IV',
+    ]);
     expect(splitNote('@comtrade | A rule.')).toEqual({ cite: '@comtrade', note: 'A rule.' });
     expect(() => citeText('@no-such-key')).toThrow(/no-such-key/);
   });

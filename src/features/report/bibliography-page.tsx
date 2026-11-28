@@ -1,12 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import {
-  GROUPS,
-  citeText,
-  citingNotes,
-  groupedEntries,
-  shortNoteNumbers,
-  splitNote,
-} from './bibliography';
+import { GROUPS, citingNotes, groupedEntries, shortNoteNumbers, noteText } from './bibliography';
 import { EntryText } from './entry-text';
 import { sourceDocuments } from './note-documents';
 import { entryAnchor, noteAnchor } from './note-ref';
@@ -88,9 +81,7 @@ export function BibliographyPage() {
                   <span className="font-mono text-report-label text-label">
                     {numbers.get(note.id)}
                   </span>
-                  <span className="break-words">
-                    {splitNote(note.text).note} ({citeText(note.text)})
-                  </span>
+                  <span className="break-words">{noteText(note.text)}</span>
                 </li>
               ))}
           </ol>

@@ -25,10 +25,10 @@ describe('RichText', () => {
 
   it('draws a reference of the text after a space, before the punctuation that follows it', () => {
     const html = renderToStaticMarkup(
-      <RichText text="fell by 84%[^1]; China" partSlug="summary" />,
+      <RichText text="fell by 84%[^2]; China" partSlug="summary" />,
     );
     expect(html).toMatch(
-      /^<span>fell by 84%<\/span> <a href="[^"]*bibliography#ref-bruegel-tracker"[^>]*>\(authors&#x27; calculations based on Bahí Esteba et al\., 2026, fig\. 2\)<\/a><span>; China<\/span>$/,
+      /^<span>fell by 84%<\/span> <a href="[^"]*bibliography#ref-kse-rot-feb26"[^>]*>\(Dodonov et al\., 2026, p\. 3\)<\/a><span>; China<\/span>$/,
     );
   });
 });

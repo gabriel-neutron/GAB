@@ -45,7 +45,7 @@ export function recordCounts(source: Source): RecordCounts {
   return {
     date: new Date(Date.UTC(Number(day[3]), month, Number(day[1]))),
     entities: number(annex, /the database holds ([\d,]+) entities/, 'entities'),
-    critical: number(method, /In total, ([\d,]+) nodes are under watch/, 'nodes under watch'),
+    critical: number(method, /In total, ([\d,]+) entities are under watch/, 'entities under watch'),
     official: number(
       method,
       /For ([\d,]+) of them, each of the three conditions rests on a document from an official issuer/,

@@ -8,9 +8,9 @@ const part = parts.find((one) => one.slug === 'ports-fleet');
 
 describe('ports and fleet', () => {
   it('splits the paragraphs of the map scene into whole sentences that give the text back', () => {
-    // The scene shows the paragraphs 1, 2 and 4 of the part: two, three and four sentences.
+    // The scene shows the paragraphs 1, 2 and 4 of the part: three, three and four sentences.
     for (const [index, count] of [
-      [1, 2],
+      [1, 3],
       [2, 3],
       [4, 4],
     ] as const) {

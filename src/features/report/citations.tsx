@@ -88,7 +88,7 @@ export const references = [
     id: 10,
     author: 'GAB',
     date: '2026',
-    title: 'Selected infrastructure nodes and geographic positions',
+    title: 'Selected infrastructure entities and geographic positions',
     publisher: 'Working extract of f2-v2.csv',
     url: import.meta.env.BASE_URL + 'report-data/nodes.json',
     note: 'Positions retain their original basis and source. Some are settlement or town points, not surveyed terminal boundaries.',
