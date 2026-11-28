@@ -615,6 +615,35 @@ const robotsOf = async (env: Env, origin: string): Promise<string | null> => {
   }
 };
 
+// The host sends a release file larger than its limit to the GitHub release (`_redirects`). The
+// GitHub answer has no CORS header, so the page of the site cannot read it. The worker reads the
+// file and gives it from the origin of the site.
+// shortcut: no Range support, a cut download starts again; add it when a reader needs to resume one.
+const largeFile = (path: string, response: Response): URL | null => {
+  if (!path.startsWith('/release/') || response.status < 300 || response.status > 399) return null;
+  const target = URL.parse(response.headers.get('location') ?? '');
+  return target?.origin === 'https://github.com' && target.pathname.includes('/releases/download/')
+    ? target
+    : null;
+};
+
+const releaseAsset = async (target: URL, method: string): Promise<Response> => {
+  const asset = await fetch(target);
+  if (!asset.ok) return new Response(`The release file answered ${asset.status}.`, { status: 502 });
+  const headers = new Headers({
+    'content-type': target.pathname.endsWith('.csv')
+      ? 'text/csv; charset=utf-8'
+      : 'application/octet-stream',
+  });
+  for (const name of ['content-length', 'etag', 'last-modified']) {
+    const value = asset.headers.get(name);
+    if (value !== null) headers.set(name, value);
+  }
+  // A tag pins the bytes of a release, so the browser can keep the file for one day.
+  headers.set('cache-control', 'public, max-age=86400');
+  return new Response(method === 'HEAD' ? null : asset.body, { headers });
+};
+
 const answer = async (request: Request, env: Env): Promise<Response> => {
   const url = new URL(request.url);
   const site = `${url.origin}/`;
@@ -629,6 +658,8 @@ const answer = async (request: Request, env: Env): Promise<Response> => {
   }
 
   const response = await env.ASSETS.fetch(request);
+  const large = largeFile(url.pathname, response);
+  if (large !== null) return releaseAsset(large, request.method);
   const type = response.headers.get('content-type') ?? '';
   // A file with a name returns itself. An address that is no file and no page returns the shell
   // of the application, which the worker turns into a true 404.
