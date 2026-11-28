@@ -19,10 +19,10 @@ import { join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { z } from 'zod';
 
-export const DATA_RELEASE_TAG = 'data-2026-11-28';
+export const DATA_RELEASE_TAG = 'data-2026-11-29';
 /** The SHA-256 of release.tar.gz of the tag. */
 export const DATA_RELEASE_SHA256 =
-  'd3ff53727765144efd67281dc2f9573dce395860116b43bf5d70c913d4c98524';
+  '905791c88c0d804366d2b1227038b106e81926dc6988bbcb82313057e3e03f96';
 
 const RELEASES = 'https://github.com/gabriel-neutron/GAB/releases/download/';
 const ASSETS = `${RELEASES}${DATA_RELEASE_TAG}/`;

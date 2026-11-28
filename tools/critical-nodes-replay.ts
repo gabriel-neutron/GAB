@@ -1,6 +1,6 @@
 // Counts the critical nodes of the report on a data release, read only.
 //
-// The count of the report is the result of this script on the release `data-2026-11-28`, the
+// The count of the report is the result of this script on the release `data-2026-11-29`, the
 // release that the report names. No database is necessary: the script downloads the release,
 // checks its SHA-256 and reads entities.csv, relations.csv and claims.csv. Only the release counts:
 // a node that the release does not hold is not in the count.
@@ -45,8 +45,8 @@ import { fetchDataRelease } from './data-release.ts';
  * release in tools/data-release.ts; this pin stays on the release of the report when the site
  * moves to a newer one. */
 export const REPORT_RELEASE = {
-  tag: 'data-2026-11-28',
-  sha256: 'd3ff53727765144efd67281dc2f9573dce395860116b43bf5d70c913d4c98524',
+  tag: 'data-2026-11-29',
+  sha256: '905791c88c0d804366d2b1227038b106e81926dc6988bbcb82313057e3e03f96',
 } as const;
 
 /** A country that applies the sanctions of the coalition (the EU, the United States, the United
