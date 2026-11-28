@@ -278,7 +278,8 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
       if (el.style.maxWidth === '576px') el.style.maxWidth = '610px';
     }
     for (const entry of Array.from(bodyOf(column).querySelectorAll<HTMLElement>('p[id^="ref-"]'))) {
-      entry.style.fontSize = '9px';
+      // 9.4px is 7 pt, the floor of the print.
+      entry.style.fontSize = '9.4px';
       entry.style.lineHeight = '10px';
       entry.style.marginBottom = '1px';
     }

@@ -20,10 +20,10 @@ const GLYPH = Object.fromEntries(
   ].map((type) => [`--entity-${type}`, 'var(--index-glyph)']),
 ) as CSSProperties;
 
-// The node or one of its relations cites a document of a state body of a party to the conflict.
+// The entity or one of its relations cites a document of a state body of a party to the conflict.
 // The words state the origin of a document and rate no source; the node panel names the document.
 const PARTY_WORDS =
-  'The node or one of its relations cites a document of a state body of a party to the conflict.';
+  'The entity or one of its relations cites a document of a state body of a party to the conflict.';
 
 function PartyMarks({ id }: { readonly id: string }) {
   const marks = reportGraph.partyMarks(id);

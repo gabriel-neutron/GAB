@@ -1,5 +1,12 @@
 import { Link } from '@tanstack/react-router';
-import { GROUPS, citingNotes, groupedEntries, shortNoteNumbers, noteText } from './bibliography';
+import {
+  GROUPS,
+  citingNotes,
+  groupedEntries,
+  locatorsOf,
+  noteText,
+  shortNoteNumbers,
+} from './bibliography';
 import { EntryText } from './entry-text';
 import { sourceDocuments } from './note-documents';
 import { entryAnchor, noteAnchor } from './note-ref';
@@ -20,6 +27,8 @@ export function BibliographyPage() {
   const notes = parts.flatMap((part) => part.notes.map((note) => ({ ...note, slug: part.slug })));
   const citing = citingNotes(notes);
   const numbers = shortNoteNumbers(notes);
+  // The pinpoints (page, annex, line) of each entry: the text gives only author and year.
+  const locators = locatorsOf(notes);
   return (
     <ReportFrame label={ui.bibliography.label}>
       <article className="mx-auto max-w-[1200px] px-4 py-10 md:px-8">
@@ -53,6 +62,9 @@ export function BibliographyPage() {
                   >
                     <span className="block font-medium">{entry.cite}</span>
                     <EntryText entry={entry} />
+                    {locators.has(entry.key) ? (
+                      <span className="block">Cited: {locators.get(entry.key)?.join('; ')}.</span>
+                    ) : null}
                     {accessed === undefined ? null : (
                       <span className={META}>
                         {ui.bibliography.accessed} {accessed} · {ui.bibliography.stored}{' '}
