@@ -59,7 +59,7 @@ describe('parity of the report text', () => {
       ...part,
       blocks: part.blocks.map((block) => ({
         ...block,
-        text: block.text.replace('in roubles rose', 'in roubles fell'),
+        text: block.text.replace('a strong rouble', 'a weak rouble'),
         ...(block.figure === undefined
           ? {}
           : {
