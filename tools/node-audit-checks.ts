@@ -23,7 +23,7 @@ import {
   plainIdentifier,
   UNIQUE_KEYS,
 } from '@gab/tools/duplicate-identifier';
-import { findExcerpt, fold } from '@gab/tools/excerpt';
+import { cutsToken, findExcerpt, fold } from '@gab/tools/excerpt';
 
 import {
   countryNames,
@@ -232,27 +232,45 @@ const scaleOf = (word: string): number | undefined =>
 const near = (a: number, b: number): boolean =>
   Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
 
+interface Reading {
+  readonly value: number;
+  /** False when the text can also give another reading of the same number. */
+  readonly certain: boolean;
+}
+
 /** The readings of each number of a text, with the scale word after it: "109,2 млн" is 109.2e6,
- * "5 108 691" is 5108691, "900,000" is 900000 or 900. */
-const numbersOf = (text: string): { readings: number[]; scale: number | undefined }[] => {
-  const out: { readings: number[]; scale: number | undefined }[] = [];
+ * "5 108 691" and "5,108,691" are 5108691. One group of three digits after a comma or a point is
+ * thousands or a decimal part: "900,000 bpd" is certain 900000 and uncertain 900, and "1,100 млн"
+ * is uncertain in each reading, because a scale word often follows a decimal comma. */
+const numbersOf = (text: string): { readings: Reading[]; scale: number | undefined }[] => {
+  const out: { readings: Reading[]; scale: number | undefined }[] = [];
   const pattern =
     /(?<![\p{L}\p{N}.,])(?:(\d{1,3}(?:([ \u00A0\u202F,.'])\d{3})(?:\2\d{3})*)([.,]\d+)?|(\d+)(?:[.,](\d+))?)(?!\p{N})(?:\s*(\p{L}+))?/gu;
   for (const found of text.toLowerCase().matchAll(pattern)) {
     const scale = scaleOf(found[6] ?? '');
     const grouped = found[1];
     if (grouped === undefined) {
-      out.push({ readings: [Number(`${found[4] ?? ''}.${found[5] ?? '0'}`)], scale });
+      out.push({
+        readings: [{ value: Number(`${found[4] ?? ''}.${found[5] ?? '0'}`), certain: true }],
+        scale,
+      });
       continue;
     }
     const separator = found[2] ?? '';
     const whole = grouped.split(separator).join('');
     const tail = (found[3] ?? '').slice(1);
-    const readings = [Number(`${whole}.${tail === '' ? '0' : tail}`)];
-    // One group after a comma or a point, with no other mark, is also a decimal part: "1,100".
-    if ((separator === ',' || separator === '.') && grouped.split(separator).length === 2 && !tail)
-      readings.push(Number(grouped.replace(separator, '.')));
-    out.push({ readings, scale });
+    const thousands = Number(`${whole}.${tail === '' ? '0' : tail}`);
+    const twoWays =
+      (separator === ',' || separator === '.') && grouped.split(separator).length === 2 && !tail;
+    out.push({
+      readings: twoWays
+        ? [
+            { value: thousands, certain: scale === undefined },
+            { value: Number(grouped.replace(separator, '.')), certain: false },
+          ]
+        : [{ value: thousands, certain: true }],
+      scale,
+    });
   }
   return out;
 };
@@ -266,22 +284,29 @@ const attributeScale = (attribute: string): number =>
     .find((one) => one !== undefined) ?? 1;
 
 /** 'yes' when the text writes the number at the scale that the text states, or as the claim writes
- * it when the text states no scale. 'scale' when only a power of 1000 that the text does not state
- * joins the two. */
+ * it when the text states no scale. 'ambiguous' when only an uncertain reading gives the value.
+ * 'scale' when only a power of 1000 that the text does not state joins the two. */
 export const holdsNumber = (
   text: string,
   value: number,
   attribute: string,
-): 'yes' | 'scale' | 'no' => {
+): 'yes' | 'ambiguous' | 'scale' | 'no' => {
   const target = value * attributeScale(attribute);
-  let scale = false;
+  let open: 'ambiguous' | 'scale' | 'no' = 'no';
   for (const { readings, scale: stated } of numbersOf(text))
     for (const one of readings) {
-      if (stated !== undefined ? near(one * stated, target) : near(one, value)) return 'yes';
-      if (stated === undefined && [1e3, 1e6, 1e9, 1e12].some((k) => near(one * k, target)))
-        scale = true;
+      if (stated !== undefined ? near(one.value * stated, target) : near(one.value, value)) {
+        if (one.certain) return 'yes';
+        open = 'ambiguous';
+      }
+      if (
+        open === 'no' &&
+        stated === undefined &&
+        [1e3, 1e6, 1e9, 1e12].some((k) => near(one.value * k, target))
+      )
+        open = 'scale';
     }
-  return scale ? 'scale' : 'no';
+  return open;
 };
 
 // An identifier is never read as a number: "273 278 850" is not the MMSI 273278850.
@@ -294,17 +319,24 @@ const holdsValue = (
   text: string,
   value: string,
   attribute: string,
-): 'yes' | 'ambiguous_date' | 'scale_not_stated' | 'no' => {
-  if (findExcerpt(text, value) !== null) return 'yes';
+): 'yes' | 'ambiguous_date' | 'ambiguous_number' | 'scale_not_stated' | 'no' => {
+  const asNumber = NUMBER.test(value) && !NOT_A_NUMBER.test(attribute) && !UNIQUE.has(attribute);
+  const span = findExcerpt(text, value);
+  // A number is a whole token: 900 is not in "900,000".
+  if (span !== null && !(asNumber && cutsToken(text, span))) return 'yes';
   if (/^\d{4}-\d{2}-\d{2}$/u.test(value)) {
     const found = holdsDay(text, value);
     return found === 'ambiguous' ? 'ambiguous_date' : found;
   }
   if (/^[A-Z]{2}$/u.test(value))
     return countryNames(value).some((name) => holdsName(text, name)) ? 'yes' : 'no';
-  if (NUMBER.test(value) && !NOT_A_NUMBER.test(attribute) && !UNIQUE.has(attribute)) {
+  if (asNumber) {
     const found = holdsNumber(text, Number(value), attribute);
-    return found === 'scale' ? 'scale_not_stated' : found;
+    return found === 'scale'
+      ? 'scale_not_stated'
+      : found === 'ambiguous'
+        ? 'ambiguous_number'
+        : found;
   }
   return 'no';
 };

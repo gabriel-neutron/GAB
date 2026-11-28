@@ -244,6 +244,18 @@ describe('the checks of a fact', () => {
     expect(check('planned_loadings_2025_09_bpd', '950000', 'handle 900,000 bpd').verdict).toBe(
       'fail',
     );
+    // "900,000" can be 900 with a decimal comma: never a pass on that reading.
+    expect(check('planned_loadings_2025_09_bpd', '900', 'handle 900,000 bpd')).toMatchObject({
+      verdict: 'cannot_check',
+      reason: 'ambiguous_number',
+    });
+    expect(check('cargo_turnover_mt_2021', '1100', 'составил 1,100 млн т')).toMatchObject({
+      verdict: 'cannot_check',
+      reason: 'ambiguous_number',
+    });
+    expect(check('planned_loadings_2025_09_bpd', '5108691', 'total 5,108,691 bpd').verdict).toBe(
+      'pass',
+    );
     // Real case: the table of Belarusbank is in thousands, and the excerpt does not say so.
     const table = 'Итого по МСФО 5 108 691 5 093 054 4 478 517';
     expect(check('total_assets_bn_byn', '5.108691', table)).toMatchObject({
@@ -300,6 +312,15 @@ describe('the checks of a fact', () => {
     const gl = (over: Row) =>
       check('exempted_by', 'gl8l', 'General License No. 8L', { ...act, ...over });
     expect(gl({})).toBe('pass');
+    // A place in brackets or a kind word is a part of the name: another entity is not named.
+    const belarus = (excerpt: string) => check('owns', 'vtb-by', 'VTB Bank (Belarus)', { excerpt });
+    expect(belarus('17013,"VTB BANK PUBLIC JOINT STOCK COMPANY"')).toBe('cannot_check');
+    expect(belarus('a bank in Belarus')).toBe('cannot_check');
+    expect(
+      check('products_flow_to', 'tuapse', 'Tuapse Refinery', {
+        excerpt: 'The fire at the port of Tuapse was put out',
+      }),
+    ).toBe('cannot_check');
     // Still not named: another bank, a document that is not the act, a news article.
     expect(vtb('17014,"SBERBANK PUBLIC JOINT STOCK COMPANY"')).toBe('cannot_check');
     expect(gl({ document_id: 'doc_other' })).toBe('cannot_check');
