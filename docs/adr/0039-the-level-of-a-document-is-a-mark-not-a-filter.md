@@ -23,6 +23,9 @@ corrections of errors stay.
   each level: A, B, C or not verified.
 - The level stays a mark. The signed list still gives it, and the release still shows the NATO
   pair of each claim that has one.
+- Level C is no exception. The operator confirmed on 28 November 2026 that a fact can cite a
+  document at C, and that the release names it with its mark. The level and the ADMIRALTY letter tell
+  the reader how much to trust a source; they do not remove a source. The signed list says the same.
 - A restricted document never leaves: its title, its address and its excerpts stay in the record.
   A bought file and a document with no public address are not public, as before.
 - The other rules of a release do not change: a person is in only with a designation, a relation is

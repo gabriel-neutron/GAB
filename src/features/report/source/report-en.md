@@ -625,7 +625,7 @@ Each document is stored as received, under its SHA-256 hash, which also forms it
 
 - –A source that is known but not archived remains a lead and does not count as a fact; likewise, a value without a source remains undocumented.
 
-- –The reliability of the issuer of each source follows a scale adapted from the NATO grading system, also called the ADMIRALTY scale, from A (an official issuer on its own record) to F (cannot be judged)[^129]; a party to the conflict is rated C at most. A separate digit from 1 to 6 rates each fact by the number of independent issuers that give it. The report shows the letter of official issuers only; the data release gives the letter and the digit of each claim that has both.
+- –The reliability of the issuer of each source follows a scale adapted from the NATO grading system, also called the ADMIRALTY scale, from A (an official issuer on its own record) to F (cannot be judged)[^129]; a party to the conflict is rated C at most. A separate digit from 1 to 6 rates each fact by the number of independent issuers that give it. The report shows the letter of official issuers only; the data release gives the letter and the digit of each claim that has both. The rating tells the reader how much to trust a source; it does not remove a source.
 
 - –Each source has a level set from its terms of use, which were read. A source whose terms forbid reuse stays internal: a fact can cite it, but its data are not republished.
 
