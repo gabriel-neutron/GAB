@@ -618,6 +618,7 @@ const robotsOf = async (env: Env, origin: string): Promise<string | null> => {
 // The host sends a release file larger than its limit to the GitHub release (`_redirects`). The
 // GitHub answer has no CORS header, so the page of the site cannot read it. The worker reads the
 // file and gives it from the origin of the site.
+// shortcut: no Range support, a cut download starts again; add it when a reader needs to resume one.
 const largeFile = (path: string, response: Response): URL | null => {
   if (!path.startsWith('/release/') || response.status < 300 || response.status > 399) return null;
   const target = URL.parse(response.headers.get('location') ?? '');
@@ -634,8 +635,12 @@ const releaseAsset = async (target: URL, method: string): Promise<Response> => {
       ? 'text/csv; charset=utf-8'
       : 'application/octet-stream',
   });
-  const length = asset.headers.get('content-length');
-  if (length !== null) headers.set('content-length', length);
+  for (const name of ['content-length', 'etag', 'last-modified']) {
+    const value = asset.headers.get(name);
+    if (value !== null) headers.set(name, value);
+  }
+  // A tag pins the bytes of a release, so the browser can keep the file for one day.
+  headers.set('cache-control', 'public, max-age=86400');
   return new Response(method === 'HEAD' ? null : asset.body, { headers });
 };
 

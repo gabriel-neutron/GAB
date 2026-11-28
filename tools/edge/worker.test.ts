@@ -332,3 +332,22 @@ describe('a release file larger than the host limit', () => {
     }
   });
 });
+
+describe('a redirect that is not to a GitHub release asset', () => {
+  it('stays a redirect', async () => {
+    const elsewhere = {
+      ASSETS: {
+        fetch: (): Promise<Response> =>
+          Promise.resolve(
+            new Response(null, { status: 302, headers: { location: 'https://example.com/x.csv' } }),
+          ),
+      },
+    };
+    const response = await worker.fetch(
+      new Request('https://example.org/release/claims.csv'),
+      elsewhere,
+    );
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('https://example.com/x.csv');
+  });
+});
