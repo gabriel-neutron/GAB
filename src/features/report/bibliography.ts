@@ -1209,15 +1209,6 @@ export const entries: readonly Entry[] = [
     title: 'Russia’s Prigozhin admits link to Wagner mercenaries for first time',
     url: 'https://www.reuters.com/world/europe/russias-prigozhin-admits-link-wagner-mercenaries-first-time-2022-09-26/',
   },
-  {
-    key: 'reuters-crash',
-    group: 'press',
-    cite: 'Reuters, 2023',
-    issuer: 'Reuters',
-    date: '2023, August 24',
-    title: 'Wagner boss Yevgeny Prigozhin listed in Russian plane crash with no survivors',
-    url: 'https://www.reuters.com/world/europe/ten-killed-private-jet-crash-north-moscow-tass-2023-08-23/',
-  },
   // Ukrainian military intelligence.
   {
     key: 'gur-fleet',

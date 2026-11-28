@@ -2704,6 +2704,151 @@
       ]
     },
     {
+      "id": "130",
+      "documents": [
+        {
+          "id": "doc_89b2a6d6d825",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_7f43332dae0d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-08",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_8e94d8715b81",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-06",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_ebbbce82570f",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_5f240bed79d5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_96dade5a1cde",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-21",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_0dee0d2de5e5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_1022b462f33c",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_a472434fd738",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_64be7a799105",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-10",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_31152bd7481d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f7961683dc54",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_aedb38de5d38",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-30",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_e7a088b23a78",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-29",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_39373f3619b9",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-27",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f4983c968614",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_0d87329971a7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f99f3befeedd",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_463a3a9c003e",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2682ecf3442d",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-10",
+          "url": "http://publications.europa.eu/resource/cellar/0492ea31-a0ce-11f1-b25c-01aa75ed71a1.0004.02/DOC_1",
+          "match": "manual"
+        }
+      ]
+    },
+    {
       "id": "50",
       "documents": [
         {
@@ -5181,25 +5326,6 @@
           "type": "news_article",
           "retrievedAt": "2026-10-31",
           "url": "https://www.reuters.com/world/europe/russias-prigozhin-admits-link-wagner-mercenaries-first-time-2022-09-26/",
-          "match": "exact"
-        }
-      ]
-    },
-    {
-      "id": "111",
-      "documents": [
-        {
-          "id": "doc_63e84115e176",
-          "type": "news_article",
-          "retrievedAt": "2026-10-31",
-          "url": "https://www.reuters.com/world/europe/ten-killed-private-jet-crash-north-moscow-tass-2023-08-23/",
-          "match": "exact"
-        },
-        {
-          "id": "doc_d5351af5082b",
-          "type": "news_article",
-          "retrievedAt": "2026-10-31",
-          "url": "https://www.reuters.com/world/europe/ten-killed-private-jet-crash-north-moscow-tass-2023-08-23/",
           "match": "exact"
         }
       ]
