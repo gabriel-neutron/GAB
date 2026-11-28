@@ -528,7 +528,7 @@ export const parts: ReportPart[] = [
       { id: '45', text: '@ust-jy2777, Annex 2' },
       {
         id: '46',
-        text: "authors' calculations based on @gfw-port-visits; @ofac-sdn; @uk-list; @eu-833-2014 | Rule: the tankers with a dated designation in the stored lists, and their port visits in the Global Fishing Watch data after that date.",
+        text: "authors' calculations based on @gfw-port-visits; @ofac-sdn; @uk-list; @eu-833-2014 | Rule: the tankers with a dated designation in the stored lists, and their AIS port calls in the Global Fishing Watch data after the first dated designation.",
       },
       { id: '47', text: '@kse-rot-feb26, p. 2' },
       { id: '48', text: '@kse-rot-feb26, pp. 2–8; @crea-jan26' },
@@ -611,7 +611,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'According to FinCEN, the US Treasury office against financial crime, [[N-M037|A7]], the best-known payment agent, pays the foreign counterparty through a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, from a bank account outside Russia, and records the value inside its network in bills of exchange (written promises to pay). Where bank channels are restricted, A7 can also move value in [[N-M040|A7A5]], a digital token advertised as backed by rouble deposits at Promsvyazbank[^75]. After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026[^76].',
+        text: 'According to FinCEN, the US Treasury office against financial crime, [[N-M037|A7]], the best-known payment agent, pays the foreign counterparty through a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, from a bank account outside Russia, and records the value inside its network in bills of exchange (written orders to pay). Where bank channels are restricted, A7 can also move value in [[N-M040|A7A5]], a digital token advertised as backed by rouble deposits at Promsvyazbank[^75]. After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026[^76].',
       },
       {
         kind: 'p',
@@ -682,7 +682,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Hong Kong plays another role, that of a platform. It takes a rising share of Russian imports of processors and integrated circuits, in place of the coalition, which may signal re-exported Western chips[^83]. Hong Kong applies only the sanctions decided by the UN Security Council, which do not target Russia: EU and US sanctions are not part of its law, although US export controls (licences for sales abroad) still follow goods of US origin. This financial centre also lets a company hide its owner, and lets new companies be created or dissolved quickly. It is therefore a convenient place of transit for shell companies, which have no real activity of their own[^84]. Targeting Hong Kong therefore hits the transit and the payment.',
+        text: 'Hong Kong plays another role, that of a platform. It takes a rising share of Russian imports of processors and integrated circuits, in place of the coalition, which may signal re-exported Western chips[^83]. Hong Kong applies only the sanctions decided by the UN Security Council, which do not target Russia: EU and US sanctions are not part of its law, although US export controls (legal limits on exports, enforced by licences) still follow goods of US origin. This financial centre also lets a company hide its owner, and lets new companies be created or dissolved quickly. It is therefore a convenient place of transit for shell companies, which have no real activity of their own[^84]. Targeting Hong Kong therefore hits the transit and the payment.',
       },
       {
         kind: 'figure',
@@ -821,7 +821,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: "State banks follow the same rule. As the EU listing and a Kremlin decree state, the head of VEB.RF is appointed by the head of state and takes his instructions directly from him. Since a presidential decree of 2023, VTB also manages in trust 10% of the state's shares in the United Shipbuilding Corporation[^120]. According to the US Treasury, a deputy president of VTB is the son of the director of the FSB, and Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence[^121]. The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.",
+        text: "State banks follow the same rule. As the EU listing and a Kremlin decree state, the head of VEB.RF is appointed by the head of state and takes his instructions directly from him; since a presidential decree of 2023, VTB also manages in trust 10% of the state's shares in the United Shipbuilding Corporation[^120]. According to the US Treasury, a deputy president of VTB is the son of the director of the FSB, and Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence[^121]. The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.",
       },
       { kind: 'h3', text: 'Unknown owners' },
       {

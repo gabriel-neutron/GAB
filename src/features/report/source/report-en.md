@@ -269,7 +269,7 @@ FIGURE: Figure 7: Russian oil exported by sea, January 2026
 
 The three sanctions regimes do not move at the same pace. When the EU and the United States designate the same
 
-[^46]: authors' calculations based on @gfw-port-visits; @ofac-sdn; @uk-list; @eu-833-2014 | Rule: the tankers with a dated designation in the stored lists, and their port visits in the Global Fishing Watch data after that date.
+[^46]: authors' calculations based on @gfw-port-visits; @ofac-sdn; @uk-list; @eu-833-2014 | Rule: the tankers with a dated designation in the stored lists, and their AIS port calls in the Global Fishing Watch data after the first dated designation.
 
 [^47]: @kse-rot-feb26, p. 2
 
@@ -355,7 +355,7 @@ A payment in yuan is still exposed to US sanctions, because the bank that settle
 
 - **SPFS:** The Russian equivalent of SWIFT is open to foreign banks, which OFAC threatens to designate if they join it[^74].
 
-According to FinCEN, the US Treasury office against financial crime, A7, the best-known payment agent, pays the foreign counterparty through a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, from a bank account outside Russia, and records the value inside its network in bills of exchange (written promises to pay). Where bank channels are restricted, A7 can also move value in A7A5, a digital token advertised as backed by rouble deposits at Promsvyazbank[^75]. After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026[^76].
+According to FinCEN, the US Treasury office against financial crime, A7, the best-known payment agent, pays the foreign counterparty through a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, from a bank account outside Russia, and records the value inside its network in bills of exchange (written orders to pay). Where bank channels are restricted, A7 can also move value in A7A5, a digital token advertised as backed by rouble deposits at Promsvyazbank[^75]. After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026[^76].
 
 [^67]: @eu-2025-395, Annex XI, p. 383; @eu-2025-2033, p. 115
 
@@ -397,7 +397,7 @@ Since 2022, the coalition no longer sells to Russia either its military technolo
 
 China and Hong Kong take the place of the coalition (figure 11), but in two different roles. China is above all a producer: for most of the dual-use technologies it sells to Russia, its exports rise without its imports rising, and re-export affects only a dozen high-technology products[^82]. Targeting China therefore hits production.
 
-Hong Kong plays another role, that of a platform. It takes a rising share of Russian imports of processors and integrated circuits, in place of the coalition, which may signal re-exported Western chips[^83]. Hong Kong applies only the sanctions decided by the UN Security Council, which do not target Russia: EU and US sanctions are not part of its law, although US export controls (licences for sales abroad) still follow goods of US origin. This financial centre also lets a company hide its owner, and lets new companies be created or dissolved quickly. It is therefore a convenient place of transit
+Hong Kong plays another role, that of a platform. It takes a rising share of Russian imports of processors and integrated circuits, in place of the coalition, which may signal re-exported Western chips[^83]. Hong Kong applies only the sanctions decided by the UN Security Council, which do not target Russia: EU and US sanctions are not part of its law, although US export controls (legal limits on exports, enforced by licences) still follow goods of US origin. This financial centre also lets a company hide its owner, and lets new companies be created or dissolved quickly. It is therefore a convenient place of transit
 
 [^80]: @eu-833-2014, Arts. 2 and 4; @ec-chp-list
 
@@ -511,7 +511,7 @@ Outside the state, the large private shareholders form a circle that the designa
 
 State companies are run by associates who do not own them. The EU states in its reasons for listing that Igor Sechin (Rosneft) is a personal friend of the president and that Nikolay Tokarev (Transneft) served with him in the KGB[^117]; according to the US Treasury, Sergei Chemezov (Rostec) has known him since the 1980s in East Germany[^118]. According to Tatiana Stanovaya of the Carnegie Endowment, these friends and former colleagues were handed large state assets to manage, which made them "state oligarchs"[^119].
 
-State banks follow the same rule. As the EU listing and a Kremlin decree state, the head of VEB.RF is appointed by the head of state and takes his instructions directly from him. Since a presidential decree of 2023, VTB also manages in trust 10% of the state's shares in the United Shipbuilding Corporation[^120]. According to the US Treasury, a deputy president of VTB is the son of the director of the FSB, and Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence[^121]. The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.
+State banks follow the same rule. As the EU listing and a Kremlin decree state, the head of VEB.RF is appointed by the head of state and takes his instructions directly from him; since a presidential decree of 2023, VTB also manages in trust 10% of the state's shares in the United Shipbuilding Corporation[^120]. According to the US Treasury, a deputy president of VTB is the son of the director of the FSB, and Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence[^121]. The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.
 
 [^113]: @eu-269-2014-cons, Annex I, entries 694 "Gennady Nikolayevich TIMCHENKO" and 731 "Dmitry Vladimirovich KONOV"
 
