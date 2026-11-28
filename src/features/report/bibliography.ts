@@ -1355,9 +1355,10 @@ export function entryOf(key: string): Entry {
 // `@key` cites an entry; ` | ` opens the short note of a note line.
 export const KEY = /@([a-z0-9][a-z0-9-]*)/g;
 const SPLIT = ' | ';
-// The longest reference in the text, with its parenthesis, and its most items.
-export const MAX_CITE = 40;
-const MAX_ITEMS = 3;
+// The longest reference in the text, with its parenthesis, and its most items: one line of the
+// page. A longer list of sources is the source line of a figure, which names its sources itself.
+export const MAX_CITE = 100;
+const MAX_ITEMS = 5;
 const PAGE = /^pp?\. [\d–-]+$/u;
 const CALCULATION = /authors' calculations/iu;
 
@@ -1388,11 +1389,11 @@ const piecesOf = (text: string): { lead: string; key: string; locator: string }[
     });
 
 /** The items of the reference in the text, each with the key of its first entry: the entries of
- * one author go in one item, and only a page stays as a pinpoint. No item when the note line is a
- * calculation of the authors, or when the reference has more than three items or more than 40
- * characters: then the numbered note gives the sources. */
+ * one author go in one item, and only a page stays as a pinpoint. A calculation of the authors
+ * cites its sources in the same way (Annex A.4 says that the counts are calculations of the
+ * authors). No item when the reference is longer than one line: only the source line of a figure
+ * is that long. */
 export function citeParts(text: string): readonly { label: string; key: string }[] {
-  if (CALCULATION.test(splitNote(text).cite)) return [];
   const pieces = piecesOf(text);
   const items: { author: string; years: string[]; key: string }[] = [];
   for (const { key } of pieces) {
@@ -1405,7 +1406,7 @@ export function citeParts(text: string): readonly { label: string; key: string }
     else if (!item.years.includes(year)) item.years.push(year);
   }
   const parts = items.map(({ author, years, key }) => ({
-    label: `${author}, ${years.join(', ')}`,
+    label: `${author}, ${[...years].sort().join(', ')}`,
     key,
   }));
   const only = pieces.length === 1 ? pieces[0] : undefined;
@@ -1425,23 +1426,10 @@ export const citeText = (text: string): string =>
     .map((part) => part.label)
     .join('; ');
 
-/** The numbered note of a note line: the sources when the text shows no reference (a
- * calculation of the authors, or a long reference), then the short note. Empty when the note
- * line needs no number. */
-export function noteText(text: string): string {
-  const short = splitNote(text).note;
-  const sources =
-    citeText(text) === ''
-      ? piecesOf(text)
-          .map(({ lead, key }) => `${lead}${entryOf(key).cite}`)
-          .join('; ')
-      : '';
-  const lead =
-    sources === ''
-      ? ''
-      : `${sources.charAt(0).toUpperCase()}${sources.slice(1).replace(/\.$/u, '')}.`;
-  return [lead, short].filter((one) => one !== '').join(' ');
-}
+/** The numbered note of a note line: its short note only (an explanation, a caveat or a
+ * counting rule). A reference is never a numbered note. Empty when the note line has no short
+ * note. */
+export const noteText = (text: string): string => splitNote(text).note;
 
 /** The pinpoints (annex, article, line, page, entry) of each entry, from all note lines: the
  * bibliography gives them, and the text does not. */

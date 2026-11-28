@@ -145,7 +145,7 @@ export async function copies(
 const CALL = /([.,;:]*)<sup data-fn="(\d+)"[^>]*>\d+<\/sup>/g;
 // The short rule above the notes of a page: the short notes of the page go after it.
 const RULE = '<div style="width: 32px; border-top: 1px solid #cfcac7; margin-bottom: 8px"></div>';
-const FIGURE_NOTE = '<em>Note.</em>';
+const FIGURE_NOTE = '<em>Source:</em>';
 
 /** One page with its references in the text: each call of a note becomes the reference in its
  * parenthesis, before the punctuation that came before the call, and a note with a short note

@@ -13,9 +13,9 @@ describe('NoteRef', () => {
 
   it('gives a note with a short note the number of its short note', () => {
     const html = renderToStaticMarkup(<NoteRef partSlug="pay" id="12" />);
-    // A calculation of the authors shows only the number of its note, with no parenthesis.
+    // A calculation of the authors cites its sources, then the number of its short note.
     expect(html).toMatch(/<span[^>]*>\d+<\/span><\/a>$/);
-    expect(html).not.toContain('(World Bank');
+    expect(html).toContain('(World Bank');
   });
 
   it('is a small marker with the name of its reference when compact', () => {

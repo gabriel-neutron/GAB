@@ -89,7 +89,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '**The method.** The authors built a database of more than 7,100 entities, where every fact points to an archived document. In it, the report looks for the entities under watch: the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that the EU, OFAC or the United Kingdom has designated, that are active in 2024-2026 and that are tied to a country that does not apply these sanctions.',
+        text: '**The method.** The authors built a database of more than 7,100 entities, where every fact points to an archived document. In it, the report looks for the entities under watch: the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that the EU, OFAC or the United Kingdom has designated (put on a sanctions list), that are active in 2024-2026 and that are tied to a country that does not apply these sanctions.',
       },
       {
         kind: 'p',
@@ -97,23 +97,11 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '**What the report measures.**',
+        text: '**What the report finds.**',
       },
       {
         kind: 'li',
-        text: '**Entities under watch:** The database holds 7,162 entities. 637 of them are under watch, with the ships of one management company counted as one: 413 in the pay layer, 7 in the finance layer and 217 in the fight layer. The finance layer is small because the database covers banks poorly.',
-      },
-      {
-        kind: 'li',
-        text: '**Fleet:** When the EU and the United States designate (put on a sanctions list) the same tanker, the United States does so first in more than eight cases out of ten; for tankers on two or more lists, the median gap from the first designation to the second is 87 days. Of 711 tankers with a dated designation, 318 called at a port at least once after it, and 22 of them called in the EU or the United Kingdom.',
-      },
-      {
-        kind: 'li',
-        text: '**Owners and managers:** In the private fleet and in oil trading, the ownership chains often end at a company with no documented owner: according to the sanctions lists and, for part of them, to Ukrainian military intelligence (GUR), a party to the conflict, sixteen shipowners or managers (firms that run ships for their owners) each own or operate at least six designated vessels with no documented ultimate owner (the person or state at the top of the chain). On the archived pages of GUR, 427 of 757 ships that give both dates show an owner or manager that started after the designation.',
-      },
-      {
-        kind: 'p',
-        text: '**What the sources show.**',
+        text: '**Entities under watch:** The database holds 7,162 entities. 637 of them are under watch: 413 in the pay layer, 7 in the finance layer and 217 in the fight layer. The finance layer is small because the database covers banks poorly.',
       },
       {
         kind: 'li',
@@ -121,7 +109,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Oil:** According to the KSE Institute of the Kyiv School of Economics, the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026[^2]. From August 2023 to October 2025, Urals, the main Russian export crude, sold $10 to $16 below Brent, the North Sea reference crude, each month; since November 2025, after OFAC, the US Treasury sanctions office, designated [[N-P026|Rosneft]] and [[N-P030|Lukoil]], it has sold $19 to $27 below.',
+        text: '**Oil price:** From August 2023 to October 2025, Urals, the main Russian export crude, sold $10 to $16 below Brent, the North Sea reference crude, each month; since November 2025, after OFAC, the US Treasury sanctions office, designated Rosneft and Lukoil, it has sold $19 to $27 below.',
       },
       {
         kind: 'li',
@@ -134,6 +122,14 @@ export const parts: ReportPart[] = [
       {
         kind: 'li',
         text: '**Components:** Of the priority goods for weapons that its partners declared as sold to Russia in 2025, China supplied 77% and Hong Kong 11%[^5], and parts made after the invasion turned up in Russian weapons in 2023.',
+      },
+      {
+        kind: 'li',
+        text: '**Fleet:** According to the KSE Institute of the Kyiv School of Economics, the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026[^2]. Of 711 tankers with a dated designation, 318 called at a port at least once after it, and 22 of them called in the EU or the United Kingdom.',
+      },
+      {
+        kind: 'li',
+        text: '**Owners:** According to the sanctions lists and, for part of them, to Ukrainian military intelligence (GUR), a party to the conflict, sixteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner (the person or state at the top of the chain).',
       },
     ],
     notes: [
@@ -276,14 +272,14 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: 'Figure 1: Timeline of the main sanctions, 2014-2026. Data: Regulations (EU) No 269/2014 and No 833/2014; Regulations (EU) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 and 2026/506; Implementing Regulations (EU) 2022/2368, 2023/251 and 2026/124; U.S. Department of the Treasury (2023); Office of Foreign Assets Control (2025)[^10].',
+        text: 'Figure 1: Timeline of the main sanctions, 2014-2026. Council of the EU (2014-2026); European Commission (2022-2026); US Treasury (2023); OFAC (2025)[^10].',
         figure: {
           number: 1,
           title: 'Timeline of the main sanctions',
           unit: '',
           period: '2014-2026',
           sources:
-            'Regulations (EU) No 269/2014 and No 833/2014; Regulations (EU) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 and 2026/506; Implementing Regulations (EU) 2022/2368, 2023/251 and 2026/124; U.S. Department of the Treasury (2023); Office of Foreign Assets Control (2025)[^10].',
+            'Council of the EU (2014-2026); European Commission (2022-2026); US Treasury (2023); OFAC (2025)[^10].',
         },
       },
       {
@@ -346,14 +342,14 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025. Data: Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026). Authors' calculations[^21]. Mirror data, reported by the buyer country. Coalition: EU, United States, United Kingdom, Japan, South Korea, Switzerland, Norway. Crude: EU = the 27 member states; customs data. Crude of Turkey: CREA (2026), an estimate.",
+        text: 'Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025. Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026)[^21]. Mirror data, reported by the buyer country. Coalition: EU, United States, United Kingdom, Japan, South Korea, Switzerland, Norway. Crude: EU = the 27 member states; customs data. Crude of Turkey: CREA (2026), an estimate.',
         figure: {
           number: 3,
           title: 'Russian exports by buyer and crude bought from Russia',
           unit: 'billion US dollars; million tonnes',
           period: '2020-2025',
           sources:
-            "Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026). Authors' calculations[^21]. Mirror data, reported by the buyer country. Coalition: EU, United States, United Kingdom, Japan, South Korea, Switzerland, Norway. Crude: EU = the 27 member states; customs data. Crude of Turkey: CREA (2026), an estimate.",
+            'Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026)[^21]. Mirror data, reported by the buyer country. Coalition: EU, United States, United Kingdom, Japan, South Korea, Switzerland, Norway. Crude: EU = the 27 member states; customs data. Crude of Turkey: CREA (2026), an estimate.',
         },
       },
       {
@@ -366,7 +362,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: 'Figure 4: Brent, Urals and the EU price cap, 2022-2026. Data: Federal Tax Service of Russia (2024-2026); Ministry of Finance of Russia (2023); Ministry of Economic Development of Russia (2026); World Bank (2026); EU regulations (2022-2026)[^25].',
+        text: 'Figure 4: Brent, Urals and the EU price cap, 2022-2026. Federal Tax Service of Russia (2024-2026); Ministry of Finance of Russia (2023); Ministry of Economic Development of Russia (2026); World Bank (2026); EU regulations (2022-2026)[^25].',
         figure: {
           number: 4,
           title: 'Brent, Urals and the EU price cap',
@@ -398,14 +394,14 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 5: Oil, gas and defence in the federal budget, 2014-2026. Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); Cooper (2023; 2025); World Bank (2026). Authors' calculations[^37]. Constant 2021 prices (GDP deflator). Hollow points: January-September (2026 provisional), estimates or planned budget.",
+        text: 'Figure 5: Oil, gas and defence in the federal budget, 2014-2026. Ministry of Finance of Russia (2026); Korsunskaya (2024); Cooper (2023; 2025); World Bank (2026)[^37]. Constant 2021 prices (GDP deflator). Hollow points: January-September (2026 provisional), estimates or planned budget.',
         figure: {
           number: 5,
           title: 'Oil, gas and defence in the federal budget',
           unit: '%; trillion 2021 roubles',
           period: '2014-2026',
           sources:
-            "Ministry of Finance of Russia (2026); Korsunskaya (2024); Cooper (2023; 2025); World Bank (2026). Authors' calculations[^37]. Constant 2021 prices (GDP deflator). Hollow points: January-September (2026 provisional), estimates or planned budget.",
+            'Ministry of Finance of Russia (2026); Korsunskaya (2024); Cooper (2023; 2025); World Bank (2026)[^37]. Constant 2021 prices (GDP deflator). Hollow points: January-September (2026 provisional), estimates or planned budget.',
         },
       },
       {
@@ -552,7 +548,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: 'Figure 6: Traffic at Russian oil ports, 2014-2025 and January-April 2026. Data: ASOP (2022-2026); PortNews (2018; 2019; 2021); NMTP (2017; 2020)[^44]. Novorossiysk includes the CPC terminal.',
+        text: 'Figure 6: Traffic at Russian oil ports, 2014-2025 and January-April 2026. ASOP (2022-2026); PortNews (2018; 2019; 2021); NMTP (2017; 2020)[^44]. Novorossiysk includes the CPC terminal.',
         figure: {
           number: 6,
           title: 'Traffic at Russian oil ports',
@@ -575,7 +571,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: 'Figure 7: Russian oil exported by sea, January 2026. Data: Dodonov et al. (2026). “Other countries” is a balance calculated by the authors. Shares: Raghunandan et al. (2026), based on Kpler[^48].',
+        text: 'Figure 7: Russian oil exported by sea, January 2026. Dodonov et al. (2026). “Other countries” is a balance calculated by the authors. Shares: Raghunandan et al. (2026), based on Kpler[^48].',
         figure: {
           number: 7,
           title: 'Russian oil exported by sea',
@@ -590,13 +586,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 8: Port calls of designated tankers after their designation. Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations, from a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. Powered by Global Fishing Watch[^50].",
+        text: 'Figure 8: Port calls of designated tankers after their designation. Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Data from a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. Powered by Global Fishing Watch[^50].',
         figure: {
           number: 8,
           title: 'Port calls of designated tankers after their designation',
           unit: 'ships',
           sources:
-            "Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations, from a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. Powered by Global Fishing Watch[^50].",
+            'Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Data from a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. Powered by Global Fishing Watch[^50].',
         },
       },
       {
@@ -605,12 +601,12 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 9: Tankers designated by the EU, the United Kingdom and OFAC. Data: Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations[^52].",
+        text: 'Figure 9: Tankers designated by the EU, the United Kingdom and OFAC. Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026)[^52].',
         figure: {
           number: 9,
           title: 'Tankers designated by the EU, the United Kingdom and OFAC',
           sources:
-            "Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations[^52].",
+            'Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026)[^52].',
         },
       },
     ],
@@ -693,7 +689,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: 'Figure 10: Settlement currency of Russian exports and imports, 2019-2025. Data: Central Bank of Russia (2026)[^57]. Currencies of “unfriendly” countries: “unfriendly countries” is the term of the Russian government (list 430-r); the series adds up the currencies of these countries. Shares of all settlements, in %.',
+        text: 'Figure 10: Settlement currency of Russian exports and imports, 2019-2025. Central Bank of Russia (2026)[^57]. Currencies of “unfriendly” countries: “unfriendly countries” is the term of the Russian government (list 430-r); the series adds up the currencies of these countries. Shares of all settlements, in %.',
         figure: {
           number: 10,
           title: 'Settlement currency of Russian exports and imports',
@@ -887,13 +883,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 11: Exports of CHP goods to Russia, 2021-2025. Data: UN Comtrade (2026); Risinger et al. (2026). Authors' calculations[^85].",
+        text: 'Figure 11: Exports of CHP goods to Russia, 2021-2025. UN Comtrade (2026); Risinger et al. (2026)[^85].',
         figure: {
           number: 11,
           title: 'Exports of CHP goods to Russia',
           unit: 'million USD',
           period: '2021-2025',
-          sources: "UN Comtrade (2026); Risinger et al. (2026). Authors' calculations[^85].",
+          sources: 'UN Comtrade (2026); Risinger et al. (2026)[^85].',
         },
       },
       {
@@ -1031,12 +1027,12 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 12: Who owns oil, gas and the fleet. Data: OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Authors' calculations[^101]. Shares: the documents of Rosneft, Gazprom, Gazprombank and TASS above, not the data release.",
+        text: 'Figure 12: Who owns oil, gas and the fleet. OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024)[^101]. Shares: the documents of Rosneft, Gazprom, Gazprombank and TASS above, not the data release.',
         figure: {
           number: 12,
           title: 'Who owns oil, gas and the fleet',
           sources:
-            "OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Authors' calculations[^101]. Shares: the documents of Rosneft, Gazprom, Gazprombank and TASS above, not the data release.",
+            'OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024)[^101]. Shares: the documents of Rosneft, Gazprom, Gazprombank and TASS above, not the data release.',
         },
       },
       {
@@ -1269,40 +1265,11 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'EU sanctions follow this shift step by step. They go up the chain: the product, then the means, then the source. The EU first targeted oil, through the embargo and the price cap, then the vessels that carry it, then the ports it leaves from. Each step answers the circumvention of the one before and arrives late; the report assumes that the parallel market re-forms faster than the lists grow.',
-      },
-    ],
-    notes: [],
-  },
-  {
-    source: 'report-en.md, Recommendations',
-    slug: 'recommendations',
-    title: 'Recommendations',
-    nodeIds: [],
-    blocks: [
-      {
-        kind: 'li',
-        text: 'A sanctions authority of the EU can use each new OFAC tanker designation as an early signal for its own review, because OFAC lists a tanker that both designate first in more than eight cases out of ten.',
+        text: "Sanctions therefore work only in part, for three reasons. First, only the coalition applies them: Russia's main partners do not, and the UN Security Council has decided no sanctions against Russia (section 4.1), which holds a veto there. Second, the coalition does not act as one: for tankers on two or more of the three lists, the median gap from the first designation to the second is 87 days (section 2.6). Third, on the report's hypothesis, new measures are slower than the channels that they target.",
       },
       {
-        kind: 'li',
-        text: 'A sanctions authority of the EU or the United Kingdom can check the port calls in its own ports of the 22 designated tankers that called there after their designation.',
-      },
-      {
-        kind: 'li',
-        text: 'An authority that lists ships can check, at each update, the current owner and manager of the ships it has already listed, because, on the pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships show an owner or manager that started after the designation.',
-      },
-      {
-        kind: 'li',
-        text: 'Where no source names the ultimate owner, an authority can designate each company for its activity and attach each new manager or trader to the group it replaces, as the Council of the EU did for Citrine Marine and Nord Axis.',
-      },
-      {
-        kind: 'li',
-        text: 'A researcher can complete the mirror data with customs data for the United Arab Emirates, Vietnam, Kazakhstan and Thailand (section 6.1), to learn what share of the priority goods for weapons passes through them.',
-      },
-      {
-        kind: 'li',
-        text: 'A funder can pay for the archiving of AIS identity histories, to learn how long a designated vessel takes to change identity, and for a check of the fleet facts by a person, because the findings on changes of owner rest on one source that is a party to the conflict.',
+        kind: 'p',
+        text: 'EU sanctions follow these channels step by step. They go up the chain: the product, then the means, then the source. The EU first targeted oil, through the embargo and the price cap, then the vessels that carry it, then the ports it leaves from. Each step answers the circumvention of the one before and arrives late; the report assumes that the parallel market re-forms faster than the lists grow.',
       },
     ],
     notes: [],
@@ -2224,13 +2191,13 @@ export const openingUi = {
     // text; words, when given, are written exactly as in the item.
     values: [
       { words: '637', note: '' },
-      { words: '87 days', note: '' },
-      { words: '427 of 757', note: '' },
       { words: '', note: '1' },
-      { words: '', note: '2' },
+      { words: '$19 to $27', note: '' },
       { words: '18.5%', note: '3' },
       { words: '', note: '4' },
       { words: '', note: '5' },
+      { words: '', note: '2' },
+      { words: 'sixteen', note: '' },
     ],
   },
   introduction: {

@@ -24,6 +24,5 @@ export const partComponents: Readonly<Record<string, PartComponent>> = {
   ownership: part(async () => (await import('./ownership/ownership-part')).OwnershipPart),
   limits: part(async () => (await import('./limits')).LimitsPart),
   conclusion: part(async () => (await import('./conclusion')).ConclusionPart),
-  recommendations: part(async () => (await import('./recommendations')).RecommendationsPart),
   'annex-method': part(async () => (await import('./annex-method')).AnnexMethodPart),
 };
