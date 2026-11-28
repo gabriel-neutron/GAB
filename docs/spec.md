@@ -96,8 +96,10 @@ folder of files, and the site beside it. The site is the application, built once
 the release, and a file for each page. It never writes over an earlier folder (ADR 0013, 0015, 0019,
 0028).
 
-- A row is in the release only when it has a public document at level A (`public.export_document`),
-  and a row names only such documents. The signed list (`research/signed-list.md`) gives the levels.
+- A row is in the release only when it has a public document that is not restricted
+  (`public.export_document`), and a row names only such documents. The signed list
+  (`research/signed-list.md`) gives the level of each document: a mark that the release shows, not
+  a filter (ADR 0039).
   A restricted document never leaves, and its excerpt can name a legal person only. A person is in only with a
   designation. A relation is in only when its two ends are. The release holds no candidate.
 - Each row carries its label and its licence (the most permissive one among its documents).

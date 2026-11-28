@@ -569,6 +569,7 @@ test('a release writes the public entities, relations and claims, each row with 
     licence: DERIVED,
     document_ids: SHIPS,
     share: '',
+    party_origin: '',
   });
 
   // One row for each claim and each cited passage of a public document.
@@ -602,6 +603,7 @@ test('a release writes the public entities, relations and claims, each row with 
       modality: 'asserts',
       transcribed: 'false',
       value_in_excerpt: 'yes',
+      party_origin: '',
     },
   ]);
   // The value names its public document only, and takes the licence of that document.
@@ -639,6 +641,7 @@ test('a release writes the public entities, relations and claims, each row with 
       modality: 'asserts',
       transcribed: 'false',
       value_in_excerpt: 'not_tested',
+      party_origin: '',
     },
   ]);
   // A public document with no cited passage still names the source of the claim.
@@ -2123,7 +2126,7 @@ test('a relation claim reads the passages of an accepted act that added a source
   ]);
 });
 
-test('a release lets out only level A: no other document, and no row with no such document', async () => {
+test('a release lets out each public document at each level, and never a restricted one', async () => {
   const root = await mkdtemp(join(tmpdir(), 'gab-release-level-'));
   const GATE = {
     A: 'doc_level_a',
@@ -2167,8 +2170,8 @@ test('a release lets out only level A: no other document, and no row with no suc
         [act, id, WORDS.length, EXTRACTOR],
       );
     }
-    // A row with a level A document and a document below it keeps the first alone.
-    await entity(held, firm(20), 'company', 'TEST GATE MIXED', [GATE.A, GATE.NOT_VERIFIED]);
+    // A row with a public document and a restricted one names the public one alone.
+    await entity(held, firm(20), 'company', 'TEST GATE MIXED', [GATE.NOT_VERIFIED, GATE.MARKED]);
     const written = await writeRelease(held.as('gabriel_app'), MANIFEST, root);
     const read = await readReleaseRecord(held.as('gabriel_app'), { natoPair: false });
     const levels = await ask(
@@ -2191,30 +2194,28 @@ test('a release lets out only level A: no other document, and no row with no suc
   ]);
   const gate = new Set(Object.values(GATE));
   expect([...made.read.documents.keys()].filter((id) => gate.has(id)).sort()).toStrictEqual(
-    [GATE.A, GATE.RULE_A].sort(),
+    [GATE.A, GATE.RULE_A, GATE.B, GATE.C, GATE.NOT_VERIFIED, GATE.COPY].sort(),
   );
   const named = made.read.entities.filter((one) => one.label.startsWith('TEST GATE'));
   expect(named.map((one) => one.label).sort()).toStrictEqual([
     'TEST GATE FIRM 0',
     'TEST GATE FIRM 1',
+    'TEST GATE FIRM 2',
+    'TEST GATE FIRM 3',
+    'TEST GATE FIRM 4',
+    'TEST GATE FIRM 7',
     'TEST GATE MIXED',
   ]);
-  expect(named.find((one) => one.label === 'TEST GATE MIXED')?.sources).toStrictEqual([GATE.A]);
+  expect(named.find((one) => one.label === 'TEST GATE MIXED')?.sources).toStrictEqual([
+    GATE.NOT_VERIFIED,
+  ]);
   const files = await Promise.all(
     (await readdir(made.written.folder)).map((name) =>
       readFile(join(made.written.folder, name), 'utf8'),
     ),
   );
-  for (const title of [
-    'Gate level B',
-    'Gate level C',
-    'Gate not verified',
-    'Gate restricted',
-    'Gate marked',
-    'Gate copy',
-    'sudact.ru',
-  ])
+  for (const title of ['Gate restricted', 'Gate marked', 'sudact.ru'])
     for (const text of files) expect(text).not.toContain(title);
-  expect(files.join('\n')).toContain('Gate level A');
-  expect(files.join('\n')).toContain('Gate rule A');
+  for (const title of ['Gate level A', 'Gate rule A', 'Gate level B', 'Gate level C', 'Gate copy'])
+    expect(files.join('\n')).toContain(title);
 });
