@@ -9,6 +9,7 @@ import { useContent, type ReportContent } from '../../use-content';
 import {
   AXIS_YEARS,
   cursorAt,
+  dateLabel,
   END,
   GAP,
   GAP_PX,
@@ -21,7 +22,6 @@ import {
   YEARS,
   yearAt,
 } from './timeline-axis';
-import { countsAt, REGIMES } from './timeline-counts';
 import { useReduceMotion } from '../../reduced-motion';
 
 type TimelineEvent = ReportContent['figureTexts']['fig2']['events'][number];
@@ -46,8 +46,7 @@ const BANDS = [
   { above: false, offset: '40px' },
 ] as const;
 
-/** Figure 1: the sanctions from 2014 to 2026, with a time cursor on the events and the tankers
- * designated by each regime at the cursor. On a wide screen, the page scroll moves a time axis
+/** Figure 1: the sanctions from 2014 to 2026, with a time cursor on the events. On a wide screen, the page scroll moves a time axis
  * across the view, at true scale outside the fold of the empty years, and moves the cursor with
  * it. On a phone, under reduced motion, and when no scroll frame is found, it is a list by year. */
 export function TimelineFigure() {
@@ -108,33 +107,17 @@ export function TimelineFigure() {
               <tr>
                 <th className="py-1 pr-4 font-normal">{methodUi.timeline.date}</th>
                 <th className="py-1 pr-4 font-normal">{methodUi.timeline.event}</th>
-                {REGIMES.map((regime) => (
-                  <th key={regime} className="py-1 pr-4 text-right font-normal">
-                    {regime}
-                  </th>
-                ))}
               </tr>
             </thead>
             <tbody>
-              {events.map((event) => {
-                const counts = countsAt(event.date);
-                return (
-                  <tr key={event.date + event.title} className="border-t border-divider">
-                    <th
-                      scope="row"
-                      className="py-1 pr-4 font-normal whitespace-nowrap tabular-nums"
-                    >
-                      {event.date}
-                    </th>
-                    <td className="py-1 pr-4">{event.title}</td>
-                    {REGIMES.map((regime) => (
-                      <td key={regime} className="py-1 pr-4 text-right tabular-nums">
-                        {counts[regime]}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
+              {events.map((event) => (
+                <tr key={event.date + event.title} className="border-t border-divider">
+                  <th scope="row" className="py-1 pr-4 font-normal whitespace-nowrap tabular-nums">
+                    <time dateTime={event.date}>{dateLabel(event.date)}</time>
+                  </th>
+                  <td className="py-1 pr-4">{event.title}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -150,20 +133,17 @@ interface CursorProps {
   readonly compact?: boolean;
 }
 
-/** The time cursor: a slider over the events, the event at the cursor and the counters by regime. */
+/** The time cursor: a slider over the events and the event at the cursor. */
 function Cursor({ index, onSelect, compact = false }: CursorProps) {
   const { figureTexts, methodUi } = useContent();
   const { events } = figureTexts.fig2;
   const event = events[index] ?? events[0];
   if (event === undefined) return null;
-  const counts = countsAt(event.date);
   return (
     <div
       className={cn(
-        'grid gap-x-8 border-t border-foreground bg-background pt-3',
-        compact
-          ? 'grid-cols-[minmax(0,1fr)_auto_minmax(0,14rem)] items-start'
-          : 'mt-6 sm:grid-cols-2',
+        'border-t border-foreground bg-background pt-3',
+        compact ? 'max-w-[36rem]' : 'mt-6',
       )}
     >
       <div className="min-w-0">
@@ -177,7 +157,7 @@ function Cursor({ index, onSelect, compact = false }: CursorProps) {
             max={events.length - 1}
             step={1}
             value={index}
-            aria-valuetext={`${event.date}, ${event.title}`}
+            aria-valuetext={`${dateLabel(event.date)}, ${event.title}`}
             onChange={(change) => {
               onSelect(Number(change.target.value));
             }}
@@ -186,39 +166,11 @@ function Cursor({ index, onSelect, compact = false }: CursorProps) {
         </label>
         <p className="font-mono text-report-label tabular-nums">
           <time dateTime={event.date} className="text-label">
-            {event.date}
+            {dateLabel(event.date)}
           </time>{' '}
           {event.title}
         </p>
       </div>
-      <dl
-        aria-live="polite"
-        aria-atomic="true"
-        aria-label={methodUi.timeline.counters}
-        className={cn('grid grid-cols-3 gap-4', compact ? 'min-w-[16rem]' : 'mt-3 sm:mt-0')}
-      >
-        {REGIMES.map((regime) => (
-          <div key={regime} className="min-w-0 border-t border-divider pt-1">
-            <dt className="font-mono text-report-label text-label">{regime}</dt>
-            <dd
-              className={cn(
-                'font-mono leading-none tabular-nums',
-                compact ? 'text-report-lead' : 'text-report-heading',
-              )}
-            >
-              {counts[regime]}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <p
-        className={cn(
-          'text-muted-foreground',
-          compact ? 'text-report-label' : 'mt-2 text-report-small sm:col-start-2',
-        )}
-      >
-        {methodUi.timeline.counters}
-      </p>
     </div>
   );
 }
@@ -235,7 +187,7 @@ function EventText({
     <>
       <span className="flex flex-wrap items-baseline gap-x-2 font-mono text-report-label tabular-nums">
         <time dateTime={event.date} className="whitespace-nowrap text-label">
-          {event.date}
+          {dateLabel(event.date)}
         </time>
         <span className={event.actor === 'WAR' ? accent.text : 'text-foreground'}>
           {actorName(methodUi.timeline.actors, event.actor)}

@@ -460,6 +460,17 @@ const listed: readonly Entry[] = [
     url: 'https://minfin.gov.ru/ru/press-center/?id_4=39967-predvaritelnaya_otsenka_ispolneniya_federalnogo_byudzheta_za_yanvar-sentyabr_2025_goda',
   },
   {
+    key: 'minfin-urals',
+    group: 'data',
+    cite: 'Minfin, 2023',
+    issuer: 'Ministry of Finance of the Russian Federation',
+    date: '2023',
+    title: 'О средней цене на нефть марки Urals [On the average price of Urals oil]',
+    url: 'https://minfin.gov.ru/ru/press-center/?id_4=38813-o_srednei_tsene_na_neft_marki_urals',
+    detail: 'Monthly releases',
+    stored: ['o_srednei_tsene_na_neft_marki_urals'],
+  },
+  {
     key: 'minfin-guidelines',
     group: 'data',
     cite: 'Minfin, 2025b',
@@ -563,9 +574,9 @@ const listed: readonly Entry[] = [
   {
     key: 'fts-mineral-tax',
     group: 'data',
-    cite: 'Federal Tax Service, 2023–2026',
+    cite: 'Federal Tax Service, 2024–2026',
     issuer: 'Federal Tax Service of Russia',
-    date: '2023–2026',
+    date: '2024–2026',
     title:
       'Data for the calculation of the mineral extraction tax, monthly releases (for example: Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/)',
     url: 'https://www.nalog.gov.ru/rn77/news/activities_fts/',
@@ -677,6 +688,28 @@ const listed: readonly Entry[] = [
     url: 'https://fs.moex.com/f/13354/nmtp-report-rus-30-04-2020.pdf',
   },
   // Reports of institutes and research centres.
+  {
+    key: 'sipri-2023',
+    group: 'institutes',
+    cite: 'Cooper, 2023',
+    issuer: 'Cooper, J.',
+    date: '2023, December',
+    title:
+      'Another budget for a country at war: Military expenditure in Russia’s federal budget for 2024 and beyond',
+    url: 'https://www.sipri.org/sites/default/files/2023-12/sipriinsights_2312_11_russian_milex_for_2024_0.pdf',
+    detail:
+      'SIPRI Insights on Peace and Security, No. 2023/11. Estimate of 2023 from nine months of data',
+  },
+  {
+    key: 'sipri-2025',
+    group: 'institutes',
+    cite: 'Cooper, 2025',
+    issuer: 'Cooper, J.',
+    date: '2025, April',
+    title: 'Preparing for a fourth year of war: Military spending in Russia’s budget for 2025',
+    url: 'https://www.sipri.org/sites/default/files/2025-04/preparing_for_a_fourth_year_of_war-military_spending_in_russias_budget_for_2025.pdf',
+    detail: 'SIPRI Insights on Peace and Security, No. 2025/04. Estimate of 2024 in brackets',
+  },
   {
     key: 'kse-rot-feb26',
     group: 'institutes',

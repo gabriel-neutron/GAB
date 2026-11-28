@@ -1,7 +1,7 @@
 import raw from './data/flows.csv?raw';
 import { readCsv } from './line-panel';
 
-// Figure 6: Russian seaborne oil in January 2026 (KSE Russian Oil Tracker, Kpler data; kb/d).
+// Figure 7: Russian seaborne oil in January 2026 (KSE Russian Oil Tracker, Kpler data; kb/d).
 // Two separate views, never one path: no source links a fleet category to a buyer.
 const rows = readCsv(raw).map((r) => ({
   from: r['from'] ?? '',
@@ -11,7 +11,8 @@ const rows = readCsv(raw).map((r) => ({
 const FLEET_TONE: Record<string, string> = {
   'Shadow fleet': 'new',
   'IG-insured': 'old',
-  'Coalition, no IG cover': 'other',
+  // Not the grey of "Products" in panel b.
+  'Coalition, no IG cover': 'unknown',
 };
 const BASINS = ['Baltic', 'Black Sea', 'Pacific', 'Arctic'];
 const BUYERS = [
@@ -81,7 +82,7 @@ export function FlowsFigure() {
       .map((f) => ({
         name: f,
         v: rows.find((r) => r.from === node && r.to === f)?.v ?? 0,
-        tone: FLEET_TONE[f] ?? 'other',
+        tone: FLEET_TONE[f] ?? 'unknown',
       }))
       .filter((p) => p.v > 0);
   return (
@@ -105,6 +106,12 @@ export function FlowsFigure() {
         </g>
         <text x="276" y="33" className="lp-axis">
           IG-insured
+        </text>
+        <g className="lp-series unknown">
+          <rect x="360" y="24" width="10" height="10" className="lp-bar" />
+        </g>
+        <text x="376" y="33" className="lp-axis">
+          Coalition, no IG cover
         </text>
         {basinNodes.map((n, i) => (
           <StackBar key={n} y={48 + i * 30} label={n} parts={fleetOf(n)} scale={0.24} />
@@ -133,8 +140,7 @@ export function FlowsFigure() {
               parts={['Seaborne crude', 'Seaborne products'].map((n) => ({
                 name: n,
                 v: rows.find((r) => r.from === n && r.to === b)?.v ?? 0,
-                tone:
-                  b === 'Unknown destination' ? 'new' : n === 'Seaborne crude' ? 'old' : 'other',
+                tone: n === 'Seaborne crude' ? 'old' : 'other',
               }))}
               scale={0.2}
               share={false}

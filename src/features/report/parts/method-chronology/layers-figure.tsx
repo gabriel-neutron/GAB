@@ -1,6 +1,5 @@
 import { Fragment } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { accent } from '../../primitives/accent';
 import { reportGraph, type GraphNode } from '../../report-graph';
 import { useContent, type ReportContent } from '../../use-content';
 import { useReport } from '../../use-report';
@@ -13,17 +12,15 @@ const LAYER_KEYS = ['Pay', 'Finance', 'Fight'] as const;
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
 
-/** Figure 1: the three layers in the order of the money, the two links between them, the budget
- * path, one square for each node of a layer in the page data (no count per layer: the release
- * gives no layer), and the three conditions of a critical
- * node as a list with hanging letters. */
+/** Figure 2: the three layers in the order of the money, the two links between them, the budget
+ * path, and the three conditions of an entity under watch as a list with hanging letters. The
+ * figure gives no count: the squares of the page data were not the counts of the release. */
 export function LayersFigure() {
   const { figureTexts, methodUi } = useContent();
   const { layers, arrows, conditions, budgetPath } = figureTexts.fig1;
   return (
     <div className="bg-[linear-gradient(var(--color-chart-grid)_1px,transparent_1px),linear-gradient(90deg,var(--color-chart-grid)_1px,transparent_1px)] bg-size-[2rem_2rem] py-6">
-      <Legend />
-      <p className="mt-2 bg-background font-mono text-report-label/4 text-label">
+      <p className="bg-background font-mono text-report-label/4 text-label">
         {methodUi.layers.schematic}
       </p>
       <ol
@@ -95,22 +92,6 @@ export function LayersFigure() {
   );
 }
 
-function Legend() {
-  const { inData, examined } = useContent().methodUi.layers;
-  return (
-    <ul className="flex flex-wrap gap-x-6 gap-y-2 bg-background font-mono text-report-label/4 text-label">
-      <li className="flex items-center gap-2">
-        <span aria-hidden="true" className={cn('size-2.5', accent.bg)} />
-        {inData}
-      </li>
-      <li className="flex items-center gap-2">
-        <span aria-hidden="true" className="size-2.5 border border-foreground" />
-        {examined}
-      </li>
-    </ul>
-  );
-}
-
 interface LayerColumnProps {
   readonly index: number;
   readonly layer: ReportContent['figureTexts']['fig1']['layers'][number];
@@ -121,8 +102,6 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
   const { methodUi } = useContent();
   const key = LAYER_KEYS[index] ?? layer.k;
   const nodes = reportGraph.layer(key);
-  const kept = nodes.filter((node) => node.kept === 'yes');
-  const examined = nodes.filter((node) => node.kept !== 'yes');
   const open = (node: GraphNode, target: HTMLElement) => {
     openNode(node.node_id, target);
   };
@@ -155,7 +134,7 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
           </span>
         </summary>
         <ul className="flex flex-wrap gap-1 pb-2">
-          {[...kept, ...examined].map((node) => (
+          {nodes.map((node) => (
             <li key={node.node_id}>
               <button
                 type="button"
@@ -163,36 +142,16 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
                   open(node, event.currentTarget);
                 }}
                 className={cn(
-                  'flex min-h-11 items-center gap-2 border border-border px-2 text-report-small hover:border-foreground',
+                  'flex min-h-11 items-center border border-border px-2 text-report-small hover:border-foreground',
                   FOCUS,
                 )}
               >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'size-2 shrink-0',
-                    node.kept === 'yes' ? accent.bg : 'border border-foreground',
-                  )}
-                />
                 {node.short_label}
               </button>
             </li>
           ))}
         </ul>
       </details>
-      {/* One square for each critical node, as a picture only: the buttons of the list above open
-          the nodes. */}
-      <div aria-hidden="true" className="mt-6 flex flex-wrap content-start gap-[3px]">
-        {kept.map((node) => (
-          <span key={node.node_id} className={cn('size-2', accent.bg)} />
-        ))}
-        {examined.map((node, place) => (
-          <span
-            key={node.node_id}
-            className={cn('size-2 border border-foreground', place === 0 && 'ml-3')}
-          />
-        ))}
-      </div>
     </>
   );
 }

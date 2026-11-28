@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { en } from '../../content';
-import { cursorAt, shiftFor, stepAt, TRACK, xOf } from './timeline-axis';
+import { cursorAt, dateLabel, shiftFor, stepAt, TRACK, xOf } from './timeline-axis';
+
+describe('dateLabel', () => {
+  it('prints the date as the PDF does', () => {
+    expect(dateLabel('2014-03-17')).toBe('17 Mar. 2014');
+    expect(dateLabel('2022-06-03')).toBe('3 Jun. 2022');
+    expect(dateLabel('2014-02')).toBe('Feb. 2014');
+  });
+});
 
 describe.each([['en', en]])('the scroll of the %s time axis', (_, copy) => {
   const dates = copy.figureTexts.fig2.events.map((event) => event.date);

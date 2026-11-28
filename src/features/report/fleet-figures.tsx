@@ -2,6 +2,9 @@ import portsRaw from './data/fleet-ports.csv?raw';
 import wavesRaw from './data/fleet-waves.csv?raw';
 import flagsRaw from './data/fleet-flags.csv?raw';
 import { readCsv } from './line-panel';
+import { portsFleetUi } from './content';
+
+const copy = portsFleetUi.waves;
 
 // Figures on the designated tanker fleet: designations of the record and Global Fishing Watch port calls by
 // IMO number, as counts of distinct tankers.
@@ -22,7 +25,7 @@ function Tile({ x, value, label }: { x: number; value: string; label: string }) 
   );
 }
 
-/** Figure 7: where designated tankers still call after their first designation, by port country. */
+/** Figure 8: where designated tankers still call after their first designation, by port country. */
 export function FleetPortsFigure() {
   const countries = ports
     .filter((r) => r['series']?.startsWith('country:'))
@@ -38,9 +41,10 @@ export function FleetPortsFigure() {
   const X0 = 150,
     SCALE = 2.0,
     TOP = 104;
-  const height = TOP + countries.length * 22 + 58;
+  const height = TOP + countries.length * 22 + 74;
   return (
-    <figure className="report-chart">
+    // A div, not a figure: the report page puts this chart in its own figure frame.
+    <div className="report-chart">
       <svg
         viewBox={`0 0 640 ${height}`}
         role="img"
@@ -66,14 +70,15 @@ export function FleetPortsFigure() {
             </g>
           );
         })}
-        <text x={X0} y={height - 28} className="lp-axis">
-          EU and UK ports: {euPorts.slice(0, 5).join(' · ')}
-        </text>
-        <text x={X0} y={height - 12} className="lp-axis">
-          {euPorts.slice(5).join(' · ')}
-        </text>
+        {/* Three ports on each line, so that no port goes past the right edge. */}
+        {[0, 3, 6].map((at, i) => (
+          <text key={at} x={X0} y={height - 44 + i * 16} className="lp-axis">
+            {at === 0 && 'EU and UK ports: '}
+            {euPorts.slice(at, at + 3).join(' · ')}
+          </text>
+        ))}
       </svg>
-    </figure>
+    </div>
   );
 }
 
@@ -104,7 +109,8 @@ const REGIONS = [
   { key: 'OFAC', x: 295, y: 282 },
 ];
 
-/** Figure 8: tankers newly listed by each regime per quarter, and the regimes that list each tanker. */
+/** Figure 9: tankers newly designated by each regime per quarter, the regimes that designate each tanker,
+ * and their flags. The words are those of the web figure. */
 export function FleetWavesFigure() {
   const count = (q: string, r: string) =>
     Number(
@@ -119,6 +125,13 @@ export function FleetWavesFigure() {
     .filter((w) => w['kind'] === 'combo')
     .map((w) => ({ key: w['key'] ?? '', v: Number(w['value']) }));
   const lag = waves.find((w) => w['kind'] === 'lag')?.['value'];
+  // The quarter of the last designation is partial when the data ends before the quarter ends.
+  const end = waves.find((w) => w['kind'] === 'end')?.['value'] ?? '';
+  const endQ = Math.ceil(Number(end.slice(5, 7)) / 3);
+  const partial =
+    end < `${end.slice(0, 4)}-${['03-31', '06-30', '09-30', '12-31'][endQ - 1]}`
+      ? `${end.slice(0, 4)}-Q${endQ}`
+      : undefined;
   const flags = readCsv(flagsRaw).map((f) => ({ flag: f['flag'] ?? '', n: Number(f['tankers']) }));
   const combo = (key: string) => combos.find((c) => c.key === key)?.v ?? 0;
   const regimeTotal = (regime: string) =>
@@ -133,10 +146,10 @@ export function FleetWavesFigure() {
       <svg
         viewBox="0 0 640 940"
         role="img"
-        aria-label="Tankers listed per quarter by the EU, the UK and OFAC, the regimes that list each tanker, and their flags"
+        aria-label="Tankers designated per quarter by the EU, the UK and OFAC, the regimes that designate each tanker, and their flags"
       >
         <text y="12" className="lp-title">
-          a. New listings, by quarter (a tanker listed by two regimes counts twice)
+          {copy.aTitle} ({copy.aUnit})
         </text>
         {REGIMES.map((r, i) => (
           <g key={r.key} transform={`translate(${X0 + i * 70},26)`}>
@@ -171,11 +184,25 @@ export function FleetWavesFigure() {
                 const h = count(q, r.key) * SCALE;
                 y -= h;
                 return h > 0 ? (
-                  <g key={r.key} className={`lp-series ${r.tone}`}>
+                  <g
+                    key={r.key}
+                    className={`lp-series ${r.tone}`}
+                    opacity={q === partial ? 0.5 : undefined}
+                  >
                     <rect x={x} y={y} width={BW} height={h} className="lp-bar stack" />
                   </g>
                 ) : null;
               })}
+              {q === partial && (
+                <rect
+                  x={x}
+                  y={y}
+                  width={BW}
+                  height={BASE - y}
+                  fill="none"
+                  style={{ stroke: 'var(--foreground)', strokeDasharray: '3 2' }}
+                />
+              )}
               {q.endsWith('Q1') && (
                 <text x={x} y={BASE + 16} className="lp-axis">
                   {q.slice(0, 4)}
@@ -184,12 +211,19 @@ export function FleetWavesFigure() {
             </g>
           );
         })}
-        <text x={X0} y={BASE + 34} className="lp-axis">
-          {earlier} tankers listed before 2022 (OFAC) are not drawn.
+        {/* The legend row has room for the first note; the second goes under the axis. */}
+        <text x={X0 + 210} y="35" className="lp-axis">
+          {copy.earlier.replace('{n}', String(earlier))}
         </text>
+        {partial && (
+          <text x={X0} y={BASE + 34} className="lp-axis">
+            {copy.partial.replace('{q}', partial).replace('{date}', end)}
+          </text>
+        )}
         <g transform="translate(0,300)">
-          <text y="12" className="lp-title">
-            b. Regimes that list each tanker
+          {/* x 110: the left edge of the print crop of this panel. */}
+          <text x="110" y="12" className="lp-title">
+            {copy.bTitle}
           </text>
           {/* Circle areas follow each regime's total; the overlaps are not to scale. */}
           {VENN.map((c) => (
@@ -211,7 +245,7 @@ export function FleetWavesFigure() {
               {combo(r.key)}
             </text>
           ))}
-          <text x="0" y="330" className="lp-axis">
+          <text x="110" y="330" className="lp-axis">
             median lag, first to second regime: {lag} days
           </text>
         </g>
@@ -220,8 +254,8 @@ export function FleetWavesFigure() {
             c. Flag of the designated tankers
           </text>
           <text y="30" className="lp-axis">
-            {flags.reduce((t, f) => t + f.n, 0)} tankers, last flag in the record · a flag is not
-            the country of the owner
+            {flags.reduce((t, f) => t + f.n, 0)} tankers, flag in the record · a flag is not the
+            country of the owner
           </text>
           {flags.map((f, i) => {
             const y = 44 + i * 20;

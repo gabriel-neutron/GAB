@@ -434,3 +434,133 @@ export function OwnershipFigure() {
     </div>
   );
 }
+
+/** One link mark of the print figure: the line style of the web figure, at the size of a word. */
+function Mark({ link }: { readonly link: Pick<Link, 'personal' | 'proposed'> }) {
+  return (
+    <svg aria-hidden="true" width="14" height="6" className="inline-block shrink-0">
+      <line
+        x1="0"
+        y1="3"
+        x2="13"
+        y2="3"
+        strokeWidth={link.personal ? 1 : 1.25}
+        strokeDasharray={link.personal ? '1 2' : link.proposed ? '3 2' : undefined}
+        markerEnd={arrowOf(link)}
+        className={link.proposed ? accent.stroke : 'stroke-foreground'}
+      />
+    </svg>
+  );
+}
+
+/** Figure 12 for the paper report: the same four bands, links, shares, states and unknown-owner
+ * box as the web figure, as lines of text. The web figure is too tall for one printed page. */
+export function OwnershipPrintFigure() {
+  const { figureTexts } = useContent();
+  const { entities, links, english } = useMemo(() => {
+    const data: Readonly<Partial<Record<string, string>>> = figureTexts.dataLabels;
+    const figure: Readonly<Partial<Record<string, string>>> = figureTexts.figures['12'].labels;
+    const label = (french: string): string => data[french] ?? figure[french] ?? french;
+    return { ...ownershipGraph(figures.f12, label), english: label };
+  }, [figureTexts]);
+  const byId = new Map(entities.map((one) => [one.id, one]));
+  const name = (id: string) => byId.get(id)?.name ?? '';
+  return (
+    <div data-print-figure className="relative w-[640px] text-[8.5px] leading-[9.5px]">
+      {/* The arrowheads of the marks below. */}
+      <svg aria-hidden="true" width="0" height="0" className="absolute">
+        <Arrows />
+      </svg>
+      <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
+        {LEGEND.filter((item) => !item.proposed || links.some((link) => link.proposed)).map(
+          (item) => (
+            <li key={item.key} className="flex items-center gap-1">
+              <Mark link={{ personal: item.dash === '1 3', proposed: item.proposed }} />
+              {english(item.key)}
+            </li>
+          ),
+        )}
+        <li className="flex items-center gap-1">
+          <span aria-hidden="true" className="h-2 w-4 border border-dashed border-signal/70" />
+          {english('propriétaire inconnu')}
+        </li>
+      </ul>
+      {BANDS.map((band, index) => {
+        const members = entities.filter((one) => one.band === index);
+        const owners = members
+          .filter((one) => links.some((link) => link.from === one.id))
+          .sort((a, b) => a.depth - b.depth);
+        const boxes = [...new Set(members.flatMap((one) => one.unnamedOwner ?? []))];
+        return (
+          <section key={band} className="border-t border-foreground pt-1 pb-1.5">
+            <h4 className="m-0 mb-1 flex gap-2 font-mono text-[8px] uppercase text-label">
+              <span className="text-foreground">{String(index + 1).padStart(2, '0')}</span>
+              <span className="flex-1">{english(band)}</span>
+              <span>{members.length}</span>
+            </h4>
+            <div className="columns-2 gap-4">
+              {owners.map((owner) => (
+                <div key={owner.id} className="mb-px break-inside-avoid">
+                  <div className="flex items-baseline gap-1">
+                    <EntityGlyph type={typeOf(owner.id)} size={7} className="shrink-0" />
+                    <span>{owner.name}</span>
+                    <span className="font-mono text-[7.5px] text-muted-foreground">
+                      {owner.kind}
+                    </span>
+                  </div>
+                  {links
+                    .filter((link) => link.from === owner.id)
+                    .map((link) => (
+                      <div key={`${link.relation}-${link.to}`} className="pl-6 -indent-4">
+                        <Mark link={link} />{' '}
+                        <span className="font-mono text-[7.5px] text-label">
+                          {link.relation}
+                          {link.share === '' ? '' : ` ${link.share}`}
+                        </span>{' '}
+                        <span>
+                          {name(link.to)}{' '}
+                          <span
+                            className={cn(
+                              'font-mono text-[7.5px]',
+                              link.proposed ? accent.text : 'text-label',
+                            )}
+                          >
+                            {link.state}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              ))}
+            </div>
+            {boxes.map((box) => {
+              const held = members.filter((one) => one.unnamedOwner === box);
+              return (
+                <div key={box} className="mt-1 border border-dashed border-signal/70 p-1.5">
+                  <div className="mb-1 font-mono text-[7.5px] text-label">
+                    <span className={accent.text}>{english(box)}</span> ·{' '}
+                    {held.length > 1
+                      ? english(
+                          'possède ou exploite les navires de {n} armateurs ou gestionnaires :',
+                        ).replace('{n}', String(held.length))
+                      : english('propriétaire inconnu')}
+                  </div>
+                  <ul className={cn(held.length > 1 && 'grid grid-cols-4 gap-x-2')}>
+                    {held.map((one) => (
+                      <li key={one.id}>
+                        {one.name}{' '}
+                        <span className="font-mono text-[7.5px] text-muted-foreground">
+                          {one.holding ?? one.kind}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </section>
+        );
+      })}
+    </div>
+  );
+}

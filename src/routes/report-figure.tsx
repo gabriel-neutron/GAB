@@ -18,10 +18,11 @@ import { CasesFigure } from '@/features/report/cases-figure';
 import { ControllersFigure } from '@/features/report/controllers-figure';
 import { AtlasFigure } from '@/features/report/atlas-figure';
 import { PlantsMapFigure } from '@/features/report/plants-map-figure';
+import { OwnershipPrintFigure } from '@/features/report/parts/ownership/ownership-figure';
 import { MethodDiagram } from '@/features/report/method-diagram';
 import '@/features/report/report.css';
 
-// The still figures of the paper report; tools/report/export-figures.ts saves each one as SVG.
+// The still figures of the paper report; tools/report/export-figures.mjs saves each one as SVG or PNG.
 const figures = {
   prices: () => <PriceFigure print />,
   method: MethodDiagram,
@@ -37,6 +38,7 @@ const figures = {
   chp: ChpFigure,
   cases: CasesFigure,
   controllers: ControllersFigure,
+  ownership: OwnershipPrintFigure,
   atlas: AtlasFigure,
   plants: PlantsMapFigure,
   'ports-v1': PortsBeforeAfter,

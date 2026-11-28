@@ -271,7 +271,8 @@
       [2020, 3745.8, "fact"],
       [2021, 3573.6, "fact"],
       [2022, 4660.4, "reported (2022)"],
-      [2024, 7725.6, "plan"],
+      [2023, 6026.9, "estimate"],
+      [2024, 8126.9, "estimate"],
       [2025, 9227.2, "plan"]
     ]
   },
@@ -457,12 +458,12 @@
     }
   ],
   "f7": [
-    { "p": "a", "f": "Crude · Baltic", "t": "“Shadow fleet”", "v": 1015, "u": "kb/d", "s": "fact" },
+    { "p": "a", "f": "Crude · Baltic", "t": "Shadow fleet", "v": 1015, "u": "kb/d", "s": "fact" },
     { "p": "a", "f": "Crude · Baltic", "t": "IG-insured", "v": 445, "u": "kb/d", "s": "fact" },
     {
       "p": "a",
       "f": "Crude · Black Sea",
-      "t": "“Shadow fleet”",
+      "t": "Shadow fleet",
       "v": 177,
       "u": "kb/d",
       "s": "fact"
@@ -471,13 +472,13 @@
     {
       "p": "a",
       "f": "Crude · Pacific",
-      "t": "“Shadow fleet”",
+      "t": "Shadow fleet",
       "v": 1137,
       "u": "kb/d",
       "s": "fact"
     },
     { "p": "a", "f": "Crude · Pacific", "t": "IG-insured", "v": 30, "u": "kb/d", "s": "fact" },
-    { "p": "a", "f": "Crude · Arctic", "t": "“Shadow fleet”", "v": 409, "u": "kb/d", "s": "fact" },
+    { "p": "a", "f": "Crude · Arctic", "t": "Shadow fleet", "v": 409, "u": "kb/d", "s": "fact" },
     {
       "p": "a",
       "f": "Crude · Arctic",
@@ -489,7 +490,7 @@
     {
       "p": "a",
       "f": "Products · Baltic",
-      "t": "“Shadow fleet”",
+      "t": "Shadow fleet",
       "v": 350,
       "u": "kb/d",
       "s": "fact"
@@ -498,7 +499,7 @@
     {
       "p": "a",
       "f": "Products · Black Sea",
-      "t": "“Shadow fleet”",
+      "t": "Shadow fleet",
       "v": 166,
       "u": "kb/d",
       "s": "fact"
@@ -514,14 +515,14 @@
     {
       "p": "a",
       "f": "Products · Pacific",
-      "t": "“Shadow fleet”",
+      "t": "Shadow fleet",
       "v": 104,
       "u": "kb/d",
       "s": "fact"
     },
     { "p": "a", "f": "Products · Pacific", "t": "IG-insured", "v": 71, "u": "kb/d", "s": "fact" },
-    { "p": "a", "f": "Products · Arctic", "t": "“Shadow fleet”", "v": 3, "u": "kb/d", "s": "fact" },
-    { "p": "a", "f": "“Shadow fleet”", "t": "Seaborne crude", "v": 2738, "u": "kb/d", "s": "fact" },
+    { "p": "a", "f": "Products · Arctic", "t": "Shadow fleet", "v": 3, "u": "kb/d", "s": "fact" },
+    { "p": "a", "f": "Shadow fleet", "t": "Seaborne crude", "v": 2738, "u": "kb/d", "s": "fact" },
     { "p": "a", "f": "IG-insured", "t": "Seaborne crude", "v": 690, "u": "kb/d", "s": "fact" },
     {
       "p": "a",
@@ -533,7 +534,7 @@
     },
     {
       "p": "a",
-      "f": "“Shadow fleet”",
+      "f": "Shadow fleet",
       "t": "Seaborne products",
       "v": 623,
       "u": "kb/d",
@@ -594,78 +595,7 @@
       "v": 19,
       "u": "%",
       "s": "fact"
-    },
-    {
-      "p": "a",
-      "f": "Designated tankers",
-      "t": "loading Russian oil",
-      "v": 140,
-      "u": "vessels",
-      "s": "fact"
-    },
-    {
-      "p": "b1",
-      "f": "TurkStream and Blue Stream",
-      "t": "Turkey",
-      "v": 21.2,
-      "u": "bcm",
-      "s": "fact"
-    },
-    {
-      "p": "b1",
-      "f": "TurkStream and Blue Stream",
-      "t": "EU and South-East Europe",
-      "v": 18.1,
-      "u": "bcm",
-      "s": "fact"
-    },
-    { "p": "b1", "f": "Power of Siberia", "t": "China", "v": 38.8, "u": "bcm", "s": "fact" },
-    { "p": "b2", "f": "Yamal LNG (Sabetta)", "t": "EU", "v": 15, "u": "Mt", "s": "fact" },
-    { "p": "b2", "f": "Yamal LNG (Sabetta)", "t": "China", "v": 3.6, "u": "Mt", "s": "fact" },
-    {
-      "p": "b2",
-      "f": "Yamal LNG (Sabetta)",
-      "t": "Other countries",
-      "v": 1.1,
-      "u": "Mt",
-      "s": "calculation"
-    },
-    { "p": "b2", "f": "Arctic LNG 2 (Utrenneye)", "t": "China", "v": 1.2, "u": "Mt", "s": "fact" },
-    {
-      "p": "b2",
-      "f": "Sakhalin-2 (Prigorodnoye)",
-      "t": "Asia (China, Japan, South Korea)",
-      "v": 10.3,
-      "u": "Mt",
-      "s": "fact"
-    },
-    {
-      "p": "c",
-      "f": "Druzhba south (via Ukraine)",
-      "t": "Slovakia",
-      "v": 4.9,
-      "u": "Mt",
-      "s": "fact"
-    },
-    {
-      "p": "c",
-      "f": "Druzhba south (via Ukraine)",
-      "t": "Hungary",
-      "v": 4.35,
-      "u": "Mt",
-      "s": "fact"
-    },
-    {
-      "p": "c",
-      "f": "Druzhba south (via Ukraine)",
-      "t": "Czechia",
-      "v": 0.52,
-      "u": "Mt",
-      "s": "fact"
-    },
-    { "p": "c", "f": "Druzhba north", "t": "Poland, Germany", "v": 0, "u": "Mt", "s": "fact" },
-    { "p": "c", "f": "Druzhba north", "t": "Belarus", "v": null, "u": "Mt", "s": "not documented" },
-    { "p": "c", "f": "ESPO spur Skovorodino-Mohe", "t": "China", "v": 30, "u": "Mt", "s": "lead" }
+    }
   ],
   "f8": {
     "n": 43,
@@ -1371,7 +1301,7 @@
       "société d’État (armement)",
       "possède",
       "100 %",
-      "fait du record"
+      "validé"
     ],
     [
       "BP Russian Investments",
@@ -1425,7 +1355,7 @@
       "banque d’État",
       "possède",
       "21,90 %",
-      "fait du record"
+      "validé"
     ],
     [
       "VEB.RF",
@@ -1443,7 +1373,7 @@
       "banque d’État",
       "possède",
       "4,79 %",
-      "fait du record"
+      "validé"
     ],
     [
       "Rosneft",
@@ -1486,7 +1416,7 @@
       "société d’État (flotte)",
       "South Fleet (Yuzhny Flot)",
       "société d’État (flotte)",
-      "gère",
+      "contrôle (filiale)",
       "",
       "fait du record"
     ],
@@ -1495,7 +1425,7 @@
       "société d’État (flotte)",
       "Invest Fleet (Invest Flot)",
       "société d’État (flotte)",
-      "gère",
+      "contrôle (filiale)",
       "",
       "fait du record"
     ],
@@ -1535,15 +1465,7 @@
       "100 %",
       "fait du record"
     ],
-    [
-      "Rostec",
-      "société d’État",
-      "Kalachnikov",
-      "société",
-      "possède",
-      "25 % + 1 action",
-      "fait du record"
-    ],
+    ["Rostec", "société d’État", "Kalachnikov", "société", "possède", "25 % + 1 action", "validé"],
     [
       "Alan LOUCHNIKOV (via TKH-Invest)",
       "privé",
@@ -1864,7 +1786,7 @@
       "White Agate Marine SPC",
       "armateur ou gestionnaire",
       "possède ou exploite (selon le GUR, partie à la guerre)",
-      "11 navires",
+      "12 navires",
       "fait du record"
     ],
     [
@@ -1936,16 +1858,25 @@
       "New Fleet Ltd",
       "armateur ou gestionnaire",
       "possède ou exploite (selon le GUR, partie à la guerre)",
-      "6 navires",
+      "7 navires",
       "fait du record"
     ],
     [
       "propriétaire non nommé",
       "propriétaire inconnu",
-      "Centauri Services LLC",
+      "Serpentine Marine Spc",
       "armateur ou gestionnaire",
       "possède ou exploite (en partie selon le GUR, partie à la guerre)",
-      "6 navires",
+      "7 navires",
+      "fait du record"
+    ],
+    [
+      "propriétaire non nommé",
+      "propriétaire inconnu",
+      "Orchid Shipmanagement LLC-FZ",
+      "armateur ou gestionnaire",
+      "possède ou exploite",
+      "7 navires",
       "fait du record"
     ],
     [
@@ -1979,15 +1910,6 @@
       "propriétaire non nommé",
       "propriétaire inconnu",
       "Cape Gemi Isletmeciligi",
-      "armateur ou gestionnaire",
-      "possède ou exploite",
-      "6 navires",
-      "fait du record"
-    ],
-    [
-      "propriétaire non nommé",
-      "propriétaire inconnu",
-      "Orchid Shipmanagement LLC-FZ",
       "armateur ou gestionnaire",
       "possède ou exploite",
       "6 navires",
