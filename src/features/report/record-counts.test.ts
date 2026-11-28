@@ -17,13 +17,17 @@ describe('record counts', () => {
     expect(text).toContain(
       `On ${day}, the date of the snapshot, the database holds ${format.format(counts.entities)} entities`,
     );
-    expect(text).toContain(`In total, ${format.format(counts.critical)} entities are under watch`);
-    expect(text).toContain(`For ${format.format(counts.official)} of them`);
+    expect(text).toContain(
+      `In the database, ${format.format(counts.critical)} entities are under watch`,
+    );
+    expect(text).toContain(
+      `For ${format.format(counts.official)} of the ${format.format(counts.critical)}`,
+    );
     expect(counts.official).toBeLessThanOrEqual(counts.critical);
   });
 
   it('refuses a text that no longer gives a count', () => {
-    const text = sources.en.text.replace('In total, ', 'Overall, ');
+    const text = sources.en.text.replace('In the database, ', 'Overall, ');
     expect(() => recordCounts({ ...sources.en, text })).toThrow(/entities under watch/);
   });
 });
