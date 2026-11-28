@@ -52,7 +52,8 @@ await page.addInitScript(() =>
 for (const name of figures) {
   await page.goto(`${BASE}/report-figure?name=${encodeURIComponent(name)}`);
   if (png) {
-    const root = page.locator('.report-page svg').first();
+    // An HTML figure marks its root; an SVG figure is its first svg.
+    const root = page.locator('.report-page [data-print-figure], .report-page svg').first();
     await root.waitFor();
     await page.evaluate(() => document.fonts.ready);
     await page.addStyleTag({

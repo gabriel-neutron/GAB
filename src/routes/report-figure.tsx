@@ -18,6 +18,7 @@ import { CasesFigure } from '@/features/report/cases-figure';
 import { ControllersFigure } from '@/features/report/controllers-figure';
 import { AtlasFigure } from '@/features/report/atlas-figure';
 import { PlantsMapFigure } from '@/features/report/plants-map-figure';
+import { OwnershipPrintFigure } from '@/features/report/parts/ownership/ownership-figure';
 import { MethodDiagram } from '@/features/report/method-diagram';
 import '@/features/report/report.css';
 
@@ -37,6 +38,7 @@ const figures = {
   chp: ChpFigure,
   cases: CasesFigure,
   controllers: ControllersFigure,
+  ownership: OwnershipPrintFigure,
   atlas: AtlasFigure,
   plants: PlantsMapFigure,
   'ports-v1': PortsBeforeAfter,
