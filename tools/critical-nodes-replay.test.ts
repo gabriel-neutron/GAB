@@ -284,7 +284,7 @@ test('counts apart what a critical node owes to facts of a party to the conflict
 
 // Downloads the release of the report once (7.6 MB, checked by its SHA-256) and pins the count.
 test(
-  'gives the count of the report on the release data-2026-11-29',
+  'gives the count of the report on the release data-2026-11-30',
   { timeout: 300_000 },
   async () => {
     const files = readRelease(await reportRelease());
@@ -294,7 +294,7 @@ test(
       byLayer: { Pay: 413, Finance: 7, Fight: 217 },
     });
     const party = partyOnly(files);
-    expect(party.facts).toBe(8371);
+    expect(party.facts).toBe(8367);
     expect(party.condition.critical).toBe(2);
     expect(party.members.critical).toBe(74);
   },

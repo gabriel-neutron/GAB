@@ -15,7 +15,7 @@ describe('record counts', () => {
       timeZone: 'UTC',
     });
     expect(text).toContain(
-      `On ${day}, the database holds ${format.format(counts.entities)} entities`,
+      `On ${day}, the date of the snapshot, the database holds ${format.format(counts.entities)} entities`,
     );
     expect(text).toContain(`In total, ${format.format(counts.critical)} nodes are under watch`);
     expect(text).toContain(`For ${format.format(counts.official)} of them`);

@@ -5,10 +5,10 @@ Ticket: BLD-13. Sources of the facts: `research/out/v3-plan/rulings.md` and `res
 
 ## Rules of this list
 
-- **Levels.** A: terms read, reuse allowed. B: terms read, no redistribution of raw data; also a law or a policy that was read and gives no clear right to reuse. C: lead only, no citation. n.v.: terms not read. "out": not used in this wave.
+- **Levels.** A: terms read, reuse allowed. B: terms read, no redistribution of raw data; also a law or a policy that was read and gives no clear right to reuse. C: terms read; they limit the reuse (for example, a read by hand only). A fact can cite a document at C, and the release names it with its level. n.v.: terms not read. "out": not used in this wave.
 - **A level rests on words read.** A paraphrase or a search summary is not a read. "Terms not found" is n.v.
 - **A non-commercial term gives B.** The open dataset carries CC BY 4.0 (ADR 0015), so a non-commercial source cannot give A. A share-alike term or a no-derivatives term also gives B.
-- **Below A.** A fact can cite a document at B or n.v., with its level shown. A document at C is a lead only: no fact cites it. Its raw data does not leave the store. Since 2026-11-28 (ADR 0039), a release names each public document that is not restricted, at each level, and shows the level as a mark: the level is no longer a filter of the export.
+- **Below A.** A fact can cite a document at B, C or n.v., with its level shown. Operator decision of 2026-11-28 (ADR 0039): a release names each public document that is not restricted, at each level. The level and the ADMIRALTY letter tell the reader how much to trust a source; they do not remove a source. A restricted document, and a document whose licence refuses a redistribution, stay out of the release.
 - **Edition.** "Current" means the edition on the date of the read. A new edition with the same terms stays on its line. A new edition with changed terms needs a new line.
 - **`enqueue_*`.** No line of this list approves `enqueue_extract` or `enqueue_mapping`, because no ticket asks for them. `start_lead`, a promotion of a mapping and the approval of a reference edition stay with the operator.
 - **All lines.** No natural person unless a sanctions act designates that person. No personal address, telephone or e-mail. No leaked, hacked or stolen data. No login, no CAPTCHA, no bypass of a block. Direct exit.
@@ -62,8 +62,8 @@ Ticket: BLD-13. Sources of the facts: `research/out/v3-plan/rulings.md` and `res
 |---|---|---|---|---|
 | GUR portal: Rostec, Instruments of war, components, drones, ships | Pages at the read date | n.v. | No terms found. Party to the war. Robots refuse /api, /data, /download-controller, /search | Internal. Only "GUR states that X is found in Y", with issuer and date. No person page. No link to hacked material. Own line in the count |
 | ISIS reports (Alabuga) | 26 reports found | n.v. | No terms found | Internal. Authors' own voice. A line that only restates a leaked document is out. No hosted leak stored |
-| Ukrainian court register | Per case number | C | Rules forbid mirrors and automated copy | Single pages by hand. Internal. Lead only: no fact, count 0. No names of persons |
-| Telegram public channels | n/a | C | Terms read: access "other than ordinary, legitimate, and intended use" is prohibited | Manual lead only. `telegram_channel` is not used for S1-01 |
+| Ukrainian court register | Per case number | C | Rules forbid mirrors and automated copy | Single pages by hand. Restricted: the document stays out of the release. No names of persons |
+| Telegram public channels | n/a | C | Terms read: access "other than ordinary, legitimate, and intended use" is prohibited | Read by hand only. A fact can cite a post, with level C as a mark. `telegram_channel` is not used for S1-01 |
 | Regional and exile press | Per article | Per site: URA.RU B; Idel.Realii and Kavkaz.Realii B (non-commercial); others n.v. | Terms pages read in the access test of 2026-11-06 | Internal. Short excerpt. Lead to the origin |
 
 ## 4. Finance

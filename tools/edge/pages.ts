@@ -59,7 +59,7 @@ const ISSUE_LINE = `- Or open an issue on [GitHub](${REPOSITORY_URL}/issues). An
 export const REPORT_VERSIONS: readonly (readonly [string, string, string])[] = [
   [
     '1.0',
-    '29 November 2026',
+    '30 November 2026',
     'the first public version, delivered to the Friedrich Naumann Foundation.',
   ],
 ];
