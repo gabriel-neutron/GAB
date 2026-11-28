@@ -60,6 +60,7 @@ decide the unit.
   and the ledger keeps it with the removal.
 - `remove_value`: takes one wrong value out of a list of an entity (an alias, a former name, a
   flag, an MMSI or a call sign). A change of these lists through `propose` only adds values.
+  With `relationId`, it takes one wrong value out of one key of a relation, and the relation stays.
 - `rename_entity`: gives an entity the current name that the passage writes. The name before
   goes to former_names (the source says it is an old name) or to aliases (another spelling).
 - `remove_source`: takes one wrong source out of a relation. The relation keeps one source.
@@ -140,6 +141,9 @@ decide the unit.
      no common identifier stay apart.
    - One value of a list is wrong, for example a former name that a join added and that is not a
      name of the entity: call `remove_value`. Never send a shorter list through `propose`: it adds.
+   - A value of a relation is true for the party, but the source does not give it for this
+     relation (the items of all the deliveries of a supplier, on the relation to one recipient):
+     call `remove_value` with `relationId`. Do not remove the relation.
    - An official list or a register gives the current name of an entity: call `rename_entity` with
      that passage. The old name is kept. A wrong rename needs two removals: the acts `rename` and
      `kept` of its answer.

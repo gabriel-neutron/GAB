@@ -1235,6 +1235,88 @@ test('remove_act takes back a value and an end of a relation, and the end can na
   expect(found.back).toStrictEqual([{ valid_to: null, attrs: {}, sources: [DOC] }]);
 });
 
+test('remove_value takes one value out of a key of a relation, and the relation stays', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await promoted(ask);
+    await withFixPage(ask);
+    await ask(
+      `UPDATE public.relations SET attrs = jsonb_build_object(
+         'items', jsonb_build_object('v', 'microelectronics', 'src', jsonb_build_array($2::text)),
+         'share_pct', jsonb_build_object('v', 100, 'src', jsonb_build_array($2::text)))
+       WHERE id = $1`,
+      [units.link, DOC],
+    );
+    const passage = fix('owns the tanker');
+    const calls = await asResearch(ask, async (call) => {
+      const removed = z
+        .object({ removal: z.uuid(), relation: z.uuid(), left: z.array(z.string()) })
+        .parse(
+          outputOf(
+            await call('remove_value', {
+              relationId: units.link,
+              key: 'items',
+              value: 'microelectronics',
+              passage,
+              why: WHY,
+            }),
+          ),
+        );
+      const kept = await ask(RELATION, [units.link]);
+      return {
+        removed,
+        kept,
+        wrongKey: await call('remove_value', {
+          relationId: units.link,
+          key: 'currency',
+          value: 'microelectronics',
+          passage,
+          why: WHY,
+        }),
+        wrongValue: await call('remove_value', {
+          relationId: units.link,
+          key: 'share_pct',
+          value: 50,
+          passage,
+          why: WHY,
+        }),
+        both: await call('remove_value', {
+          entityId: units.vessel,
+          relationId: units.link,
+          key: 'items',
+          value: 'microelectronics',
+          passage,
+          why: WHY,
+        }),
+        undo: await call('remove_act', { actId: removed.removal, passage, why: WHY }),
+      };
+    });
+    return { calls, back: await ask(RELATION, [units.link]) };
+  });
+  expect(found.calls.removed.left).toStrictEqual([]);
+  // The row stays, with its other key and its sources. Only the value leaves.
+  expect(found.calls.kept).toStrictEqual([
+    { valid_to: null, attrs: { share_pct: { v: 100, src: [DOC] } }, sources: [DOC] },
+  ]);
+  expect(found.calls.wrongKey.text).toMatch(
+    /^the record refused the call: value: .*holds no value/u,
+  );
+  expect(found.calls.wrongValue.text).toMatch(
+    /^the record refused the call: value: .*holds no value/u,
+  );
+  expect(found.calls.both.refused).toBe(true);
+  expect(found.calls.undo.refused).toBe(false);
+  expect(found.back).toStrictEqual([
+    {
+      valid_to: null,
+      attrs: {
+        items: { v: 'microelectronics', src: [DOC] },
+        share_pct: { v: 100, src: [DOC] },
+      },
+      sources: [DOC],
+    },
+  ]);
+});
+
 test('retitle_document corrects a title and keeps its history; the bytes and the address stay', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     await withFixPage(ask);
