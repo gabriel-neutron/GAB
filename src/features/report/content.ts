@@ -88,7 +88,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '**The method.** The authors built a database of more than 7,100 entities, where every fact points to an archived document. In it, the report looks for the nodes, that is the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that are exposed to sanctions, active in 2024-2026 and tied to a country that does not apply them.',
+        text: '**The method.** The authors built a database of more than 7,100 entities, where every fact points to an archived document. In it, the report looks for the nodes, that is the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that were exposed to sanctions at some time in 2024-2026, active in 2024-2026 and tied to a country that does not apply them.',
       },
       {
         kind: 'p',
@@ -240,7 +240,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Exposed to sanctions:** The European Union (EU), the American Office of Foreign Assets Control (OFAC) or the United Kingdom designates it, or a designated person owns 50% or more of it;',
+        text: '**Exposed to sanctions:** The European Union (EU), the American Office of Foreign Assets Control (OFAC) or the United Kingdom designates it, or designated it at some time in 2024-2026, or a designated person owns 50% or more of it;',
       },
       {
         kind: 'li',
@@ -288,7 +288,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'In total, 637 nodes are under watch, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For 572 of them, each of the three conditions rests on a document from an official issuer. A semi-automated verification system checks the facts: automatic rules, AI reviewers, fixed checks of each excerpt and checks by the authors. Annex A describes how the facts are collected and checked. Section A.3 says how the count of nodes under watch was made.',
+        text: 'In total, 637 nodes are under watch, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For 572 of them, each of the three conditions rests on a document from an official issuer. In the data release, 12 of the 637 nodes no longer have an open designation. A semi-automated verification system checks the facts: automatic rules, AI reviewers, fixed checks of each excerpt and checks by the authors. Annex A describes how the facts are collected and checked. Section A.3 says how the count of nodes under watch was made.',
       },
     ],
     notes: [
