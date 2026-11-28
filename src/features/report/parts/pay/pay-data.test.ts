@@ -19,15 +19,18 @@ describe('pay data', () => {
   });
 
   it('keeps a missing value missing', () => {
-    // No Urals price is published for December 2022; no defence figure for 2023.
+    // No Urals price is published for December 2022.
     expect(payData.f4.urals[0]).toBeNull();
-    expect(payData.f5.defence[2023 - 2014]).toBeNull();
   });
 
   it('marks estimates and plans as hollow', () => {
     const china = payData.f3b.find((row) => row.key === 'China');
     expect(china?.points.map((point) => point?.hollow)).toEqual([false, false, true, false, false]);
     expect(payData.f5.defence.at(-1)).toEqual({ x: 2025, y: 9.2272, hollow: true });
+    // 2023 and 2024: SIPRI estimates.
+    expect(payData.f5.defence[2023 - 2014]?.hollow).toBe(true);
+    expect(payData.f5.defence[2023 - 2014]?.y).toBeCloseTo(6.0269);
+    expect(payData.f5.defence[2024 - 2014]?.hollow).toBe(true);
   });
 
   it('reads the August and September 2026 values in date order', () => {

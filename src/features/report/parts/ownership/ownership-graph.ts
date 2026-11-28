@@ -21,7 +21,7 @@ const ALIASES: Readonly<Record<string, string>> = {
   'Idas LLC': 'N-O064',
   'North Fleet Ltd': 'N-O065',
   'New Fleet Ltd': 'N-O068',
-  'Centauri Services LLC': 'N-O069',
+  'Serpentine Marine Spc': 'N-O074',
   'Hung Phat Maritime Trading': 'N-O070',
 };
 const byName = new Map(nodes.map((node) => [node.name, node.node_id]));

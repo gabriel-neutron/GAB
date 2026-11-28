@@ -41,3 +41,24 @@ export const shiftFor = (x: number, view: number): number => (x * (TRACK - view)
 /** The step at a cursor line: the last event at or before it, or the first event. */
 export const stepAt = (dates: readonly string[], x: number): number =>
   Math.max(0, dates.filter((date) => xOf(date) <= x).length - 1);
+
+const MONTHS = [
+  'Jan.',
+  'Feb.',
+  'Mar.',
+  'Apr.',
+  'May',
+  'Jun.',
+  'Jul.',
+  'Aug.',
+  'Sep.',
+  'Oct.',
+  'Nov.',
+  'Dec.',
+];
+/** The date of an event as the PDF prints it: "17 Mar. 2014", or "Feb. 2014" for a month only. */
+export const dateLabel = (date: string): string => {
+  const [year = '', month = '', day] = date.split('-');
+  const name = `${MONTHS[Number(month) - 1] ?? month} ${year}`;
+  return day === undefined ? name : `${String(Number(day))} ${name}`;
+};

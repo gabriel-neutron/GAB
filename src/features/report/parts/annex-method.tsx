@@ -62,7 +62,7 @@ function Cells({
 }
 
 /** The annex: the method as a compact technical sheet (one row per section, mono codes, grids of
- * rules and conditions), every node of the report, the scale of the research in small, and the
+ * rules and conditions), every entity of the report, the scale of the research in small, and the
  * way to the notes as the end of the page. */
 export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
   const { closingUi, parts, report, ui } = useContent();
@@ -88,7 +88,6 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
     {
       label: copy.report,
       counts: [
-        [ui.counters.nodes, counts.nodes],
         [ui.counters.relations, counts.relations],
         [ui.counters.documents, counts.documents],
         [ui.counters.sources, counts.sources],

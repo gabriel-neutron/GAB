@@ -51,7 +51,7 @@ interface MapStep {
 export const MAP_STEPS: readonly MapStep[] = [
   {
     box: [26.5, 42.5, 41.5, 70.5],
-    named: ['N-P001', 'N-P002', 'N-P005', 'N-P011', 'N-P009'],
+    named: ['N-P001', 'N-P002', 'N-P005', 'N-P011', 'N-P009', 'N-P012'],
     tag: 'ban',
   },
   // The text names the ports of the Baltic, the Black Sea and the Pacific, so the camera holds both
@@ -70,7 +70,7 @@ const BASINS = [
   { name: 'Black Sea', ports: ['N-P005', 'N-P011'] },
   { name: 'Pacific', ports: ['N-P007'] },
 ] as const;
-const SHADOW = '“Shadow fleet”';
+const SHADOW = 'Shadow fleet';
 const crude = (basin: string) =>
   figureData.flows.filter((row) => row.panel === 'a' && row.from === `Crude · ${basin}`);
 const total = (basin: string) => crude(basin).reduce((sum, row) => sum + (row.value ?? 0), 0);

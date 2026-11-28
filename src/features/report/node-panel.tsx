@@ -64,14 +64,7 @@ export function NodeRecord({ id }: { readonly id: string }) {
         </p>
         <Dialog.Title className="text-report-lead break-words">{node.name}</Dialog.Title>
         <Dialog.Description className="text-report-small text-muted-foreground">
-          {[
-            node.country,
-            node.evidence_score_0_11 === ''
-              ? ''
-              : `${ui.node.evidence} ${node.evidence_score_0_11} ${ui.node.outOf}`,
-          ]
-            .filter((part) => part !== '')
-            .join(' · ')}
+          {node.country}
         </Dialog.Description>
         {node.record_entity_id === '' ? null : (
           <div className="flex flex-wrap gap-2 pt-2">

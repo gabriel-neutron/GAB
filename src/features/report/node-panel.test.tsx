@@ -49,11 +49,11 @@ describe('the description of the node panel', () => {
       ),
     )?.[1];
 
-  it('leaves out an empty country and an empty score', () => {
-    // VEB.RF has no country and no score in the data.
-    const blank = reportGraph.node('N-O002');
-    expect([blank?.country, blank?.evidence_score_0_11]).toEqual(['', '']);
+  it('leaves out an empty country and shows no evidence score', () => {
+    // VEB.RF has no country in the data. The report defines no evidence score, so none shows.
+    expect(reportGraph.node('N-O002')?.country).toBe('');
     expect(description('N-O002')).toBe('');
+    expect(description('N-P001')).not.toContain('11');
   });
 });
 
