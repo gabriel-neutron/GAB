@@ -99,6 +99,18 @@ test('a condition passes when an excerpt names the node by its short label, and 
   ]);
 });
 
+test('the sanctions condition fails when only a claim that is no link to an act cites its document', () => {
+  const checks = checkReport(files, {
+    nodes: [node('N-2', 'ship', { cond1_sanctions_state: 'record', cond1_doc: 'doc_3' })],
+    edges: [],
+    notes: new Map([['8', 'IMO 91234567 is no number of seven digits.']]),
+    noteDocuments: new Map([['8', ['doc_3']]]),
+  });
+  expect(checks.filter((one) => one.fact !== 'node_entry').map((one) => one.reason)).toEqual([
+    'no_claim_of_the_node_cites_the_document',
+  ]);
+});
+
 test('reads the identifiers and the notes of the text', () => {
   expect(noteIdentifiers('Reg. (EU) No 833/2014, IMO 9876543, RUS1126')).toEqual([
     '833/2014',

@@ -1,8 +1,10 @@
 // A row of the record that holds former_names as one text is corrected by a new act, never by an
-// edit of the history: an update_attrs act with the list replaces the value when the operator
+// edit of the history: an update_attrs act with the list adds its names to the value when the operator
 // accepts it, and the accepted act keeps the old text in prior_value. The statements commit,
 // because an act is not decided by the transaction that proposed it, and the entity is removed at
 // the end (the ledger keeps its rows).
+
+import { randomBytes } from 'node:crypto';
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -12,7 +14,8 @@ import { callTool } from '@gab/tools/tool';
 
 import { probe, type Ask } from './probe.ts';
 
-const SHA = 'ab'.repeat(32);
+// A document is never deleted, so each run stores a document of its own.
+const SHA = randomBytes(32).toString('hex');
 const DOC = `doc_${SHA.slice(0, 12)}`;
 const TODAY = new Date().toISOString().slice(0, 10);
 const TEXT = 'Former names: Ocean Unicorn, Wellington, Khalissa, Bai Lu';
@@ -30,7 +33,7 @@ const PROPOSE = `SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::te
   $4::uuid) AS id`;
 const PROMOTE = 'SELECT public.promote_unit($1::uuid, $2::text) AS id';
 
-test('a new update_attrs act with the list replaces the text, and keeps the text in prior_value', async () => {
+test('a new update_attrs act with the list adds the names to the text, and keeps the text in prior_value', async () => {
   const found = await probe('app', async (app) => {
     const entity = await first(app, PROPOSE, [
       'create_entity',
@@ -118,5 +121,6 @@ test('a new update_attrs act with the list replaces the text, and keeps the text
       ]);
     }
   });
-  expect(found).toStrictEqual({ status: 'accepted', prior: OLD, held: NAMES });
+  // A list of names only grows (ADR 0038): the old text stays beside the names.
+  expect(found).toStrictEqual({ status: 'accepted', prior: OLD, held: [OLD, ...NAMES] });
 });

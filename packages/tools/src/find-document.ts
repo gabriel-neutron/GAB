@@ -49,7 +49,7 @@ export const findDocument = defineTool({
     'and "host" is the host of the address. "textPages" is the number of pages of stored text, and null means ' +
     'that the document has no text to read or to cite. "archive" names the zip archive that ' +
     'held a file, and the path of the file in it. "level" is A, B, C or not_verified: a release ' +
-    'names level A only. A "restricted" document never leaves, and an excerpt of it names a legal ' +
+    'shows it as a mark. A "restricted" document never leaves, and an excerpt of it names a legal ' +
     'person only.',
   input: z
     .strictObject({

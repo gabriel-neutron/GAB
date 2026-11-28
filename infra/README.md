@@ -167,7 +167,7 @@ Windows account as the record, so its allow list bounds it and no sandbox does.
 The audit of the nodes, one by one, is in `vps/README.md` ("The node audit"). On the VPS it reads
 only the public data release. On the PC, record mode also reads the record and the raw store, read
 only: it checks that each cited document exists, that its stored bytes have its hash, that the excerpt
-is in the stored text at its page, and that a cited document has level A. Each session refuses a write.
+is in the stored text at its page, and that a cited document has a level of the signed list. Each session refuses a write.
 The main stack must run, and `infra/.env` gives the credentials.
 
 | You want | Run, in the main checkout |

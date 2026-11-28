@@ -129,12 +129,18 @@ CREATE VIEW public.public_document AS
 
 -- A DOCUMENT THAT A RELEASE CAN NAME: public and not restricted, at each level (ADR 0039). The
 -- level is a mark that the release shows, not a filter: a fact of a document at level B, C or not
--- verified leaves with its mark. A restricted document never leaves, so its title, its address and
--- its excerpts stay in the record. public_document keeps its own meaning for the masks of the read.
+-- verified leaves with its mark. A restricted document never leaves, and neither does a document of
+-- a provider whose licence refuses a redistribution or that needs a registration: its title, its
+-- address and its excerpts stay in the record. public_document keeps its own meaning for the masks
+-- of the read.
 CREATE VIEW public.export_document AS
   SELECT d.id FROM public.public_document d
     JOIN public.document_mark m ON m.id = d.id
-   WHERE NOT m.restricted;
+   WHERE NOT m.restricted
+     AND NOT EXISTS (SELECT 1 FROM public.documents x
+                       JOIN public.document_provider v ON v.id = x.provider_id
+                      WHERE x.id = d.id
+                        AND v.licence IN ('restricted', 'registration-terms'));
 
 -- THE READ OF THE NODE AUDIT THROUGH THE TUNNEL (migration 0099). gabriel_audit reads these two views
 -- and nothing else, and only for an export document: public and not restricted. A release

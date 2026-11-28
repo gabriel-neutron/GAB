@@ -2137,6 +2137,7 @@ test('a release lets out each public document at each level, and never a restric
     RESTRICTED: 'doc_level_restricted',
     MARKED: 'doc_level_marked',
     COPY: 'doc_level_copy',
+    LICENCE: 'doc_level_licence',
   };
   const WORDS = 'TEST GATE FIRM is a firm.';
   const firm = (n: number) => `00000000-0000-4000-8000-0000000007${String(n).padStart(2, '0')}`;
@@ -2152,7 +2153,8 @@ test('a release lets out each public document at each level, and never a restric
          ($6, 'url', 'Gate restricted', 'https://sudact.ru/arbitral/doc/one/', '2026-10-01', NULL, false),
          ($7, 'url', 'Gate marked', 'https://list.test/marked', '2026-10-01', 'ofac_sdn', true),
          ($8, 'url', 'Gate copy', 'https://web.archive.org/web/2024/https://www.justice.gov/opa/pr/one',
-          '2026-10-01', NULL, false)`,
+          '2026-10-01', NULL, false),
+         ($9, 'api', 'Gate licence', 'https://list.test/licence', '2026-10-01', 'un_comtrade', false)`,
       Object.values(GATE),
     );
     const ids = Object.values(GATE);
@@ -2187,6 +2189,7 @@ test('a release lets out each public document at each level, and never a restric
     { id: GATE.B, level: 'B', restricted: false },
     { id: GATE.C, level: 'C', restricted: false },
     { id: GATE.COPY, level: 'not_verified', restricted: false },
+    { id: GATE.LICENCE, level: 'not_verified', restricted: false },
     { id: GATE.MARKED, level: 'A', restricted: true },
     { id: GATE.NOT_VERIFIED, level: 'not_verified', restricted: false },
     { id: GATE.RESTRICTED, level: 'not_verified', restricted: true },
@@ -2214,7 +2217,8 @@ test('a release lets out each public document at each level, and never a restric
       readFile(join(made.written.folder, name), 'utf8'),
     ),
   );
-  for (const title of ['Gate restricted', 'Gate marked', 'sudact.ru'])
+  // A licence that refuses a redistribution holds its document back at each level.
+  for (const title of ['Gate restricted', 'Gate marked', 'sudact.ru', 'Gate licence'])
     for (const text of files) expect(text).not.toContain(title);
   for (const title of ['Gate level A', 'Gate rule A', 'Gate level B', 'Gate level C', 'Gate copy'])
     expect(files.join('\n')).toContain(title);

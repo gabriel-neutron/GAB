@@ -368,7 +368,9 @@ export const recordChecks = async (
       break;
     }
   }
-  const levelA = read.some(([, one]) => one.level === 'A');
+  // The level is a mark, not a filter (ADR 0039): the check asks for one cited document that the
+  // signed list rates, at any level.
+  const rated = read.some(([, one]) => one.level !== 'not_verified' && one.level !== '');
   return [
     missing.length === 0
       ? result('document_exists', 'pass', 'each cited document is in the record')
@@ -385,9 +387,9 @@ export const recordChecks = async (
     atPage
       ? result('excerpt_at_page', 'pass', 'an excerpt is in the stored text at its page')
       : failOrHidden('excerpt_at_page', 'excerpt_not_at_page'),
-    levelA
-      ? result('document_level', 'pass', 'a cited document has level A')
-      : failOrHidden('document_level', 'no_level_a_document'),
+    rated
+      ? result('document_level', 'pass', 'a cited document has a level')
+      : failOrHidden('document_level', 'no_rated_document'),
   ];
 };
 

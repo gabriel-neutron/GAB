@@ -119,7 +119,7 @@ operator to accept" a proposal.
 - The licences of OpenCorporates and OCCRP Aleph do not fit the open dataset. Use them only as a
   lead, or cite a fact from them. Never use a leak collection of Aleph (see the rule on leaked data).
 - A document has a level and a class. `find_document` gives `level` and `restricted`. A release
-  names level A only. Store a file that names natural persons with `restricted: true`, when no rule
+  names each public document that is not restricted, and shows its level (ADR 0039). Store a file that names natural persons with `restricted: true`, when no rule
   of the record holds its host: an excerpt of it names a legal person only. A capital letter outside
   the name of a firm is refused there, so cut the excerpt to the firm (its form, with the name in
   quotes or a Latin form last) and to words with no capital.

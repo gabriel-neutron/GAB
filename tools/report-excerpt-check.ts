@@ -127,8 +127,11 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
       )?.[1];
       const document = node[`cond${n}_doc`] ?? '';
       if (state !== 'record' || document === '') continue;
-      const cited = touchingAll(members).filter((claim) =>
-        claim.citations.some((row) => row['document_id'] === document),
+      // The sanctions condition rests on a link to an act; the other two on any claim of the node.
+      const cited = touchingAll(members).filter(
+        (claim) =>
+          (n !== '1' || ACT_LINKS.has(claim.relationType)) &&
+          claim.citations.some((row) => row['document_id'] === document),
       );
       if (cited.length === 0)
         add(
@@ -199,9 +202,7 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
     if (text === undefined) continue;
     for (const identifier of noteIdentifiers(text)) {
       const rows = documents.flatMap((one) => byDocument.get(one) ?? []);
-      const held = rows.find(
-        (row) => holdsIdentifier(excerpt(row), identifier) || excerpt(row).includes(identifier),
-      );
+      const held = rows.find((row) => holdsIdentifier(excerpt(row), identifier));
       if (rows.length === 0)
         add('note', note, documents.join(';'), 'cannot_check', `no_release_excerpt:${identifier}`);
       else
