@@ -57,6 +57,7 @@ import {
   excerptAtSource,
   excerptPresent,
   FACT_CHECKS,
+  farEndsOf,
   identifiersOf,
   identifierValid,
   NODE_CHECKS,
@@ -75,7 +76,7 @@ import { LOCAL_CHECK, localCheckIds, localCheckLines, sourceReader } from './nod
 import { tunnelConnection } from './record-tunnel-env.ts';
 
 /** The version of the checks. A result file of another version is not resumed. */
-export const AUDIT_VERSION = 2;
+export const AUDIT_VERSION = 3;
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -161,6 +162,7 @@ export interface Context {
   readonly claims: ReadonlyMap<string, Claim>;
   readonly claimsOfEntity: ReadonlyMap<string, readonly Claim[]>;
   readonly identifiers: ReturnType<typeof identifiersOf>;
+  readonly farEnds: ReturnType<typeof farEndsOf>;
   readonly actAttributes: ReadonlyMap<string, ReadonlySet<string>>;
   /** The days that the release gives as claims of a relation. */
   readonly days: ReturnType<typeof claimedDays>;
@@ -209,6 +211,7 @@ export const contextOf = (
     claims,
     claimsOfEntity,
     identifiers,
+    farEnds: farEndsOf(files.entities, claims.values()),
     actAttributes,
     days,
     duplicates: duplicatesOf(files.entities, identifiers),
@@ -264,7 +267,7 @@ export const auditNode = async (node: AuditNode, context: Context): Promise<Node
   for (const claim of factsOf(node, context)) {
     const results = [
       excerptPresent(claim),
-      valueInExcerpt(claim, context.identifiers),
+      valueInExcerpt(claim, context.identifiers, context.farEnds),
       denyList(claim),
       identifierValid(claim),
       dates(claim, context.actAttributes, context.days),
@@ -532,6 +535,7 @@ export const summaryOf = (lines: readonly Line[], totalNodes: number): string =>
   const flagged = new Set<string>();
   const differ = { storedYesRecomputedFail: 0, storedNoRecomputedPass: 0 };
   const origins = new Map<string, number>();
+  let unrated = 0;
   for (const node of nodes)
     for (const fact of node.facts) {
       if (seen.has(fact.claim)) continue;
@@ -543,6 +547,7 @@ export const summaryOf = (lines: readonly Line[], totalNodes: number): string =>
         const own = perCheck.get(result.check) ?? new Map<string, number>();
         own.set(result.verdict, (own.get(result.verdict) ?? 0) + 1);
         perCheck.set(result.check, own);
+        if (result.check === 'document_level' && result.reason === 'unrated') unrated += 1;
         if (result.verdict === 'fail' || result.verdict === 'cannot_check') {
           const key = `${result.check} ${result.verdict} ${result.reason.split(':')[0] ?? ''}`;
           reasons.set(key, (reasons.get(key) ?? 0) + 1);
@@ -598,6 +603,8 @@ export const summaryOf = (lines: readonly Line[], totalNodes: number): string =>
       const rate = ran === 0 ? '-' : `${((100 * n('fail')) / ran).toFixed(1)}%`;
       return `| ${check} | ${String(n('pass'))} | ${String(n('fail'))} | ${String(n('cannot_check'))} | ${String(n('not_applicable'))} | ${rate} |`;
     }),
+    '',
+    `Claims whose cited documents are all unrated (document_level pass "unrated", ADR 0039): ${String(unrated)}.`,
     '',
     '## Reasons of fail and cannot_check',
     '',

@@ -8,6 +8,7 @@ import {
   claimsOf,
   dates,
   denyList,
+  farEndsOf,
   designationSource,
   duplicatesOf,
   excerptPresent,
@@ -171,6 +172,161 @@ describe('the checks of a fact', () => {
     expect(valueInExcerpt(two, identifiers).verdict).toBe('pass');
   });
 
+  // A1, real cases of the review of 2026-11-28 (valid_from and valid_to in OFAC, EU and RBI texts).
+  it.each([
+    ['Release Date: 02/24/2022', '2022-02-24'],
+    ['Sberbank India | 13.8.2026', '2026-08-13'],
+    ['through 12:01 a.m. eastern standard time, December 18, 2026', '2026-12-18'],
+    ['on 24 February 2022', '2022-02-24'],
+    ['24.02.2022', '2022-02-24'],
+    ['за год, закончившийся 31 декабря 2025 года', '2025-12-31'],
+  ])('finds the day in the written form of %s', (excerpt, value) => {
+    const claim = { ...with_('v1/flag', { excerpt }), attribute: 'valid_from', value };
+    expect(valueInExcerpt(claim, identifiers).verdict).toBe('pass');
+  });
+
+  it('gives an ambiguous order of day and month cannot_check, and fails another day', () => {
+    const check = (excerpt: string, value: string) =>
+      valueInExcerpt(
+        { ...with_('v1/flag', { excerpt }), attribute: 'valid_from', value },
+        identifiers,
+      );
+    // Real case: the UK list writes 09/04/2025, and the order of day and month is a guess.
+    const uk = '09/04/2025,RUS1072,15015,,Gazprombank';
+    expect(check(uk, '2025-04-09')).toMatchObject({
+      verdict: 'cannot_check',
+      reason: 'ambiguous_date',
+    });
+    // Real case: the claim gives 2022-03-24, and the excerpt gives no such day in each order.
+    expect(check(uk, '2022-03-24').verdict).toBe('fail');
+    expect(check('on 25 February 2022', '2022-02-24').verdict).toBe('fail');
+    expect(check('Release Date: 02/25/2022', '2022-02-24').verdict).toBe('fail');
+  });
+
+  // A4, real cases: Ust-Luga cargo, Primorsk loadings, Transneft exports, two addresses in Russia.
+  it.each([
+    [
+      'cargo_turnover_mt_2021',
+      '109.2',
+      'Грузооборот портов Усть-Луга составил 109,2 млн т (+6,5%)',
+    ],
+    [
+      'planned_loadings_2025_09_bpd',
+      '900000',
+      'loadings at Primorsk, which had been expected to handle 900,000 bpd in September',
+    ],
+    [
+      'oil_export_shipments_change_2025_vs_2024_pct',
+      '1.1',
+      'выросли на 1,1% по сравнению с 2024 годом',
+    ],
+    [
+      'registration_jurisdiction',
+      'RU',
+      '34737,52046,"46 Prospekt Tekstilshchikov","Kostroma 156000","Russia"',
+    ],
+    [
+      'registration_jurisdiction',
+      'RU',
+      'Place of registration: St. Petersburg, Russian Federation',
+    ],
+  ])('finds the %s value %s in its written form', (attribute, value, excerpt) => {
+    const claim = { ...with_('v1/flag', { excerpt }), attribute, value };
+    expect(valueInExcerpt(claim, identifiers).verdict).toBe('pass');
+  });
+
+  it('fails a different number, scale or country, and leaves an unstated scale open', () => {
+    const check = (attribute: string, value: string, excerpt: string) =>
+      valueInExcerpt({ ...with_('v1/flag', { excerpt }), attribute, value }, identifiers);
+    const ustLuga = 'Грузооборот портов Усть-Луга составил 109,2 млн т (+6,5%)';
+    expect(check('cargo_turnover_mt_2021', '109.3', ustLuga).verdict).toBe('fail');
+    expect(check('cargo_turnover_mt_2021', '109.2', 'составил 109,2 тыс т').verdict).toBe('fail');
+    expect(check('planned_loadings_2025_09_bpd', '950000', 'handle 900,000 bpd').verdict).toBe(
+      'fail',
+    );
+    // "900,000" can be 900 with a decimal comma: never a pass on that reading.
+    expect(check('planned_loadings_2025_09_bpd', '900', 'handle 900,000 bpd')).toMatchObject({
+      verdict: 'cannot_check',
+      reason: 'ambiguous_number',
+    });
+    expect(check('cargo_turnover_mt_2021', '1100', 'составил 1,100 млн т')).toMatchObject({
+      verdict: 'cannot_check',
+      reason: 'ambiguous_number',
+    });
+    expect(check('planned_loadings_2025_09_bpd', '5108691', 'total 5,108,691 bpd').verdict).toBe(
+      'pass',
+    );
+    // Real case: the table of Belarusbank is in thousands, and the excerpt does not say so.
+    const table = 'Итого по МСФО 5 108 691 5 093 054 4 478 517';
+    expect(check('total_assets_bn_byn', '5.108691', table)).toMatchObject({
+      verdict: 'cannot_check',
+      reason: 'scale_not_stated',
+    });
+    expect(check('total_assets_bn_byn', '5.108692', table).verdict).toBe('fail');
+    // Real case: the excerpt gives a name and no country.
+    const kupol = '46431,"JOINT STOCK COMPANY IZHEVSK ELECTROMECHANICAL PLANT KUPOL"';
+    expect(check('registration_jurisdiction', 'RU', kupol).verdict).toBe('fail');
+    expect(check('registration_jurisdiction', 'RU', 'flag of Belarus').verdict).toBe('fail');
+  });
+
+  // A3, real cases: VTB Bank in the OFAC SDN.CSV, Transneft in Russian, General License No. 8L.
+  it('names the far end by another legal form, a stored name, or the cited act itself', () => {
+    const entities = [
+      { id: 'vtb', type: 'company', label: 'PJSC VTB Bank', document_ids: '' },
+      { id: 'tn', type: 'company', label: 'Transneft', document_ids: '' },
+      {
+        id: 'gl8l',
+        type: 'legal_act',
+        label: 'General License No. 8L',
+        document_ids: 'doc_ec913f5e9458',
+      },
+    ];
+    const names = [
+      cite({
+        claim_id: 'tn/name_cyrillic',
+        subject_id: 'tn',
+        attribute: 'name_cyrillic',
+        value: 'Транснефть',
+        excerpt: 'x',
+      }),
+    ];
+    const ends = farEndsOf(entities, claimsOf(names).values());
+    const check = (relationType: string, object: string, objectLabel: string, over: Row) =>
+      valueInExcerpt(
+        { ...with_('r-own', over), relationType, object, objectLabel },
+        identifiers,
+        ends,
+      ).verdict;
+    const vtb = (excerpt: string) => check('associated_with', 'vtb', 'PJSC VTB Bank', { excerpt });
+    expect(vtb('17013,"VTB BANK PUBLIC JOINT STOCK COMPANY"')).toBe('pass');
+    expect(
+      check('owns', 'tn', 'Transneft', {
+        excerpt: 'контролирующим акционером НМТП является компания ПАО «Транснефть»',
+      }),
+    ).toBe('pass');
+    const act = {
+      excerpt: '(5) VTB Bank Public Joint Stock Company;',
+      document_id: 'doc_ec913f5e9458',
+      document_type: 'register_entry',
+    };
+    const gl = (over: Row) =>
+      check('exempted_by', 'gl8l', 'General License No. 8L', { ...act, ...over });
+    expect(gl({})).toBe('pass');
+    // A place in brackets or a kind word is a part of the name: another entity is not named.
+    const belarus = (excerpt: string) => check('owns', 'vtb-by', 'VTB Bank (Belarus)', { excerpt });
+    expect(belarus('17013,"VTB BANK PUBLIC JOINT STOCK COMPANY"')).toBe('cannot_check');
+    expect(belarus('a bank in Belarus')).toBe('cannot_check');
+    expect(
+      check('products_flow_to', 'tuapse', 'Tuapse Refinery', {
+        excerpt: 'The fire at the port of Tuapse was put out',
+      }),
+    ).toBe('cannot_check');
+    // Still not named: another bank, a document that is not the act, a news article.
+    expect(vtb('17014,"SBERBANK PUBLIC JOINT STOCK COMPANY"')).toBe('cannot_check');
+    expect(gl({ document_id: 'doc_other' })).toBe('cannot_check');
+    expect(gl({ document_type: 'news_article' })).toBe('cannot_check');
+  });
+
   it('checks that a relation names its far end', () => {
     expect(valueInExcerpt(one('r-own'), identifiers).verdict).toBe('pass');
     expect(
@@ -264,14 +420,41 @@ describe('the checks of the stored document', () => {
     expect(results.map((r) => r.verdict)).toEqual(['pass', 'pass', 'pass', 'pass']);
   });
 
-  it('fails a changed file, an excerpt not at its page, an unrated document and an absent document', async () => {
+  it('fails a changed file, an excerpt not at its page, a document with no level and an absent document', async () => {
     const results = await recordChecks(
       one('v1/flag'),
-      reader({ sha: 'other', level: 'not_verified', text: 'x' }),
+      reader({ sha: 'other', level: '', text: 'x' }),
     );
     expect(results.map((r) => r.verdict)).toEqual(['pass', 'fail', 'fail', 'fail']);
+    expect(results[3]?.reason).toBe('no_level_in_record');
     const absent = await recordChecks(with_('v1/flag', { document_id: 'doc_z' }), reader());
     expect(absent[0]?.verdict).toBe('fail');
+  });
+
+  // A5, ADR 0039: the level is a mark. A GUR page at not_verified is no fault of the fact.
+  it('passes a fact that cites only an unrated document as unrated, and fails an unknown level', async () => {
+    expect((await recordChecks(one('v1/flag'), reader({ level: 'not_verified' })))[3]).toEqual({
+      check: 'document_level',
+      verdict: 'pass',
+      reason: 'unrated',
+    });
+    expect((await recordChecks(one('v1/flag'), reader({ level: 'X' })))[3]).toMatchObject({
+      verdict: 'fail',
+      reason: 'no_level_in_record',
+    });
+  });
+
+  // A2, real case: the stored text of the OFAC SDN.CSV has no quotes, the excerpt keeps them.
+  it('finds a quoted CSV excerpt in a stored text with no quotes, and fails another field', async () => {
+    const stored =
+      '51632,LIBERTY,vessel,UKRAINE-EO13662] [RUSSIA-EO14024,-0- ,8P2253,Crude Oil Tanker,-0- ,-0- ,Barbados';
+    const row = (excerpt: string) => with_('v1/flag', { excerpt });
+    const quoted = '51632,"LIBERTY","vessel","UKRAINE-EO13662] [RUSSIA-EO14024",-0- ,"8P2253"';
+    expect((await recordChecks(row(quoted), reader({ text: stored })))[2]?.verdict).toBe('pass');
+    const other = '51632,"LIBERTY","vessel","UKRAINE-EO13662] [RUSSIA-EO14024",-0- ,"8P2257"';
+    expect((await recordChecks(row(other), reader({ text: stored })))[2]?.reason).toBe(
+      'excerpt_not_at_page',
+    );
   });
 
   it('fails the hash of a document with no hash and no stored bytes', async () => {
