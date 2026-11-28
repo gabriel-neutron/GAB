@@ -28,7 +28,8 @@ const RELEASES = 'https://github.com/gabriel-neutron/GAB/releases/download/';
 const ASSETS = `${RELEASES}${DATA_RELEASE_TAG}/`;
 
 // External constraint: the host serves no static file larger than 25 MiB. The GitHub release
-// holds each larger file alone, and the site sends the reader there.
+// holds each larger file alone. The host sends the request there, and the edge worker gives the
+// file from the origin of the site (tools/edge/worker.ts).
 const HOST_FILE_LIMIT = 25 * 1024 * 1024;
 
 /** Downloads and unpacks a release once (by default the pinned one), and gives its folder. */

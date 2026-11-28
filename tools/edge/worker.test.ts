@@ -303,3 +303,32 @@ describe('the pages for agents', () => {
     expect(await (await get('/robots.txt')).text()).toContain('Content-Signal:');
   });
 });
+
+describe('a release file larger than the host limit', () => {
+  const ASSET = 'https://github.com/gabriel-neutron/GAB/releases/download/t/claims.csv';
+  const redirecting = {
+    ASSETS: {
+      fetch: (): Promise<Response> =>
+        Promise.resolve(new Response(null, { status: 302, headers: { location: ASSET } })),
+    },
+  };
+
+  it('comes from the origin of the site, not as a redirect', async () => {
+    const real = globalThis.fetch;
+    globalThis.fetch = ((input: URL) =>
+      Promise.resolve(
+        new Response(String(input) === ASSET ? 'id\n1\n' : '', { status: 200 }),
+      )) as typeof fetch;
+    try {
+      const response = await worker.fetch(
+        new Request('https://example.org/release/claims.csv'),
+        redirecting,
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('text/csv');
+      expect(await response.text()).toBe('id\n1\n');
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+});
