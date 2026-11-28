@@ -55,6 +55,8 @@ describe('the references of the notes', () => {
       const cite = citeText(note.text);
       expect(cite.length + 2).toBeLessThanOrEqual(MAX_CITE);
       expect(cite.split('; ').length).toBeLessThanOrEqual(5);
+      // Only the source lines of figures 1 and 4 are longer than one line: a figure names its sources.
+      if (cite === '') expect(['10', '25']).toContain(note.id);
     }
     expect(locatorsOf([{ text: '@eu-833-2014, Annex IV' }]).get('eu-833-2014')).toEqual([
       'Annex IV',

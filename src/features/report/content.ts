@@ -1265,11 +1265,11 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: "Sanctions therefore work only in part, for three reasons. First, only the coalition applies them: Russia's main partners do not, and the UN Security Council, where Russia holds a veto, has decided no sanctions against it (section 4.1). Second, the coalition does not act as one: for tankers on two or more of the three lists, the median gap from the first designation to the second is 87 days (section 2.6). Third, new measures are slower than the channels that they target.",
+        text: "Sanctions therefore work only in part, for three reasons. First, only the coalition applies them: Russia's main partners do not, and the UN Security Council has decided no sanctions against Russia (section 4.1), which holds a veto there. Second, the coalition does not act as one: for tankers on two or more of the three lists, the median gap from the first designation to the second is 87 days (section 2.6). Third, on the report's hypothesis, new measures are slower than the channels that they target.",
       },
       {
         kind: 'p',
-        text: 'EU sanctions follow this shift step by step. They go up the chain: the product, then the means, then the source. The EU first targeted oil, through the embargo and the price cap, then the vessels that carry it, then the ports it leaves from. Each step answers the circumvention of the one before and arrives late; the report assumes that the parallel market re-forms faster than the lists grow.',
+        text: 'EU sanctions follow these channels step by step. They go up the chain: the product, then the means, then the source. The EU first targeted oil, through the embargo and the price cap, then the vessels that carry it, then the ports it leaves from. Each step answers the circumvention of the one before and arrives late; the report assumes that the parallel market re-forms faster than the lists grow.',
       },
     ],
     notes: [],
