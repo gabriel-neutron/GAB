@@ -46,7 +46,7 @@ import { fetchDataRelease } from './data-release.ts';
  * moves to a newer one. */
 export const REPORT_RELEASE = {
   tag: 'data-2026-11-28',
-  sha256: 'db24edb6cbbe41f2b0873d7c2c3677712643d32697057e202bed259ebea97fb0',
+  sha256: 'd3ff53727765144efd67281dc2f9573dce395860116b43bf5d70c913d4c98524',
 } as const;
 
 /** A country that applies the sanctions of the coalition (the EU, the United States, the United

@@ -22,7 +22,7 @@ import { z } from 'zod';
 export const DATA_RELEASE_TAG = 'data-2026-11-28';
 /** The SHA-256 of release.tar.gz of the tag. */
 export const DATA_RELEASE_SHA256 =
-  'db24edb6cbbe41f2b0873d7c2c3677712643d32697057e202bed259ebea97fb0';
+  'd3ff53727765144efd67281dc2f9573dce395860116b43bf5d70c913d4c98524';
 
 const RELEASES = 'https://github.com/gabriel-neutron/GAB/releases/download/';
 const ASSETS = `${RELEASES}${DATA_RELEASE_TAG}/`;
