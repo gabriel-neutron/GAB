@@ -62,6 +62,12 @@ const PAGE_NAMES: Readonly<Record<string, readonly string[]>> = {
   'Tambov Powder Plant': ['Tambov gunpowder plant'],
   'Longkou Pt': ['Longkou port'],
   'Beihai LNG Terminal': ['Beihai terminal'],
+  'OJSC Capital Bank of Central Asia (Kyrgyzstan)': ['Capital Bank of Central Asia'],
+  'Keremet bank (Kyrgyzstan)': ['Keremet Bank'],
+  'PROMSVYAZBANK PUBLIC JOINT STOCK COMPANY': ['Promsvyazbank', 'PSB'],
+  'IEMZ Kupol': ['Izhevsk Electromechanical Plant Kupol'],
+  'Paradip Port': ['Paradip'],
+  'STC (Специальный технологический центр)': ['Специальный технологический центр'],
 };
 const NAME_KEYS = new Set(['aliases', 'former_names', 'name_cyrillic', 'name_other']);
 
@@ -95,14 +101,16 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
   const excerpt = (row: Row) =>
     `${row['excerpt'] ?? ''}\n${row['document_title'] ?? ''}\n${row['document_address'] ?? ''}`;
   const names_ = (text: string, entity: string) =>
-    (names.get(entity) ?? []).some(
-      (one) => one.trim() !== '' && (holds(text, one) || holds(text, shortName(one))),
-    ) || [...(ids.get(entity)?.values() ?? [])].flat().some((one) => holdsIdentifier(text, one));
+    (names.get(entity) ?? []).some((one) => one.trim() !== '' && holds(text, one)) ||
+    [...(ids.get(entity)?.values() ?? [])].flat().some((one) => holdsIdentifier(text, one));
   // The vessels of a manager, or failing that of an owner, are members of its node (A.3), and a
-  // node of a shipowner names the vessels that it owns or operates.
+  // node of a shipowner holds the vessels that it owns or operates. Only a vessel is a member.
   const fleet = nodeMembers(files);
   for (const one of files.relations)
-    if (one['type'] === 'owns' || one['type'] === 'operates')
+    if (
+      (one['type'] === 'owns' || one['type'] === 'operates') &&
+      type.get(one['to_id'] ?? '') === 'vessel'
+    )
       fleet.set(one['from_id'] ?? '', [
         ...(fleet.get(one['from_id'] ?? '') ?? []),
         one['to_id'] ?? '',
@@ -117,8 +125,9 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
   const states = (claim: Claim, row: Row): boolean => {
     const text = excerpt(row);
     if (claim.kind === 'attribute') {
+      // A value must be in the excerpt itself, never only in the title or the address of the page.
       const values = safeValues(claim.value);
-      return values.length > 0 && values.every((one) => holds(text, one));
+      return values.length > 0 && values.every((one) => holds(row['excerpt'] ?? '', one));
     }
     if (ACT_LINKS.has(claim.relationType)) return names_(text, claim.subject);
     // GAB makes the label of an event ("strike — site — day"), so no page writes it: the excerpt
@@ -279,15 +288,6 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
   return checks;
 };
 
-/** A name with no legal form and no word of its kind: "LLC SKF Arktika" is also "SKF Arktika", and
- * "Nizhny Novgorod refinery" is also "Nizhny Novgorod". A name of fewer than four letters is none. */
-const FORMS =
-  /^(?:(?:llc|jsc|pjsc|ojsc|cjsc|ooo|oao|pao|zao|ao|ltd|limited|inc|co|corp|plc|the)\.?,?\s+)+|(?:,?\s+(?:llc|jsc|pjsc|ojsc|ooo|ltd|limited|inc|co|corp|plc|refinery|terminal|port|plant|oil pipeline|pipeline)\.?)+$/giu;
-export const shortName = (name: string): string => {
-  const short = name.replace(FORMS, '').trim();
-  return short.length >= 4 && short !== name.trim() ? short : '';
-};
-
 /** The record entities of a node: a group node holds its ids joined by ";". */
 const entitiesOf = (node: Row): string[] =>
   (node['record_entity_id'] ?? '')
@@ -303,14 +303,8 @@ export const holds = (text: string, words: string): boolean => {
   if (body !== '' && new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, 'iu').test(text))
     return true;
   // "CJSC Alfa Bank Belarus" is "Alfa-Bank (Belarus)", and "TSK VEKTOR, OOO" is "TSK Vektor".
-  // A label can end with a place in brackets: "Capital Bank of Central Asia (Kyrgyzstan)".
-  const plain = ` ${plainName(text)} `;
-  // The brackets can also hold the name in another script: "STC (Специальный технологический центр)".
-  const inBrackets = /\(([^)]*)\)\s*$/u.exec(words)?.[1] ?? '';
-  return [words, words.replace(/\s*\([^)]*\)\s*$/u, ''), inBrackets].some((one) => {
-    const name = plainName(one);
-    return name.length >= 4 && plain.includes(` ${name} `);
-  });
+  const name = plainName(words);
+  return name.length >= 4 && ` ${plainName(text)} `.includes(` ${name} `);
 };
 
 const LEGAL_FORMS = new Set(

@@ -196,17 +196,16 @@ test('a condition reads each of its documents, and two excerpts of one page read
   ).toEqual(['N-1/cond2 pass', 'N-1/cond3 fail']);
 });
 
-test('a name holds with no punctuation, no legal form and no place in brackets', () => {
+test('a name holds with no punctuation and no legal form, but never on a place alone', () => {
   expect(plainName('CJSC "Alfa-Bank" (Belarus)')).toBe('alfa bank belarus');
   expect(holds('BEL0166,,CJSC Alfa Bank Belarus', 'Alfa-Bank (Belarus)')).toBe(true);
-  expect(
-    holds(
-      'RUS2987,,OJSC CAPITAL BANK OF CENTRAL ASIA',
-      'Capital Bank of Central Asia (Kyrgyzstan)',
-    ),
-  ).toBe(true);
   expect(holds('TSK VEKTOR, OOO', 'TSK Vektor')).toBe(true);
   expect(holds('Bank of Asia', 'Bank of Central Asia')).toBe(false);
+  // A subsidiary is not its parent, and a country is not a bank.
+  expect(holds('VTB Bank (PJSC) Shanghai Branch', 'VTB Bank (Kazakhstan)')).toBe(false);
+  expect(holds('Exports to Kazakhstan rose', 'Sberbank (Kazakhstan)')).toBe(false);
+  // A refinery is not its town.
+  expect(holds('the Tuapse port was struck', 'Tuapse Refinery')).toBe(false);
 });
 
 test('a condition of a manager rests on a fact of a vessel that it operates', () => {
@@ -235,4 +234,47 @@ test('a condition of a manager rests on a fact of a vessel that it operates', ()
     noteDocuments: new Map(),
   });
   expect(checks.find((one) => one.ref === 'N-1/cond1')?.verdict).toBe('pass');
+});
+
+test('a value holds in the excerpt only, an event needs its place, and a page name counts', () => {
+  const pages = {
+    entities: [
+      { id: 'ship', label: 'ALTURA', type: 'vessel' },
+      { id: 'strike', label: 'strike — Tuapse — 2026-04-16', type: 'event' },
+      { id: 'plant', label: 'Nizhny Novgorod refinery', type: 'facility' },
+    ],
+    relations: [],
+    claims: [
+      claim({
+        claim_id: 'v',
+        claim_kind: 'attribute',
+        subject_id: 'ship',
+        attribute: 'build_year',
+        value: '2004',
+        document_id: 'doc_6',
+        excerpt: 'Built in a Korean yard',
+        document_title: 'ALTURA 2004',
+      }),
+      claim({
+        claim_id: 'e',
+        subject_id: 'strike',
+        relation_type: 'occurred_at',
+        object_id: 'plant',
+        document_id: 'doc_7',
+        excerpt: 'Drones hit the Кстовский НПЗ at night',
+      }),
+    ],
+  };
+  const checks = checkReport(pages, {
+    nodes: [
+      node('N-1', 'ship', { cond2_active_state: 'record', cond2_doc: 'doc_6' }),
+      node('N-2', 'plant', { cond2_active_state: 'record', cond2_doc: 'doc_7' }),
+    ],
+    edges: [],
+    notes: new Map(),
+    noteDocuments: new Map(),
+  });
+  const verdict = (ref: string) => checks.find((one) => one.ref === ref)?.verdict;
+  expect(verdict('N-1/cond2')).toBe('fail');
+  expect(verdict('N-2/cond2')).toBe('pass');
 });
