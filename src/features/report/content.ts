@@ -89,7 +89,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '**The method.** The authors built a database of more than 7,100 entities, where every fact points to an archived document. In it, the report looks for the entities under watch: the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that were exposed to sanctions at some time in 2024-2026, active in 2024-2026 and tied to a country that does not apply them.',
+        text: '**The method.** The authors built a database of more than 7,100 entities, where every fact points to an archived document. In it, the report looks for the entities under watch: the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that the EU, OFAC or the United Kingdom has designated, that are active in 2024-2026 and that are tied to a country that does not apply these sanctions.',
       },
       {
         kind: 'p',
@@ -237,19 +237,19 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'To find the key entities, the report uses three conditions:',
+        text: 'An entity is under watch when it meets all three conditions below. The rule applies to each entity of the database in the same way; it selects, it does not rank:',
       },
       {
         kind: 'li',
-        text: '**Exposed to sanctions:** A coalition member designates it, or a designated person owns it;',
+        text: '**Exposed to sanctions:** The EU, OFAC or the United Kingdom has designated it, or a designated entity holds 50% or more of it;',
       },
       {
         kind: 'li',
-        text: '**Active in 2024-2026:** A dated proof of activity;',
+        text: '**Active in 2024-2026:** A fact dated in that period;',
       },
       {
         kind: 'li',
-        text: '**Tied to a third country:** Its head office, the flag of its ships or a counterparty is in a country that does not apply the sanctions of the coalition (the EU, the United States, the United Kingdom and their allies). An oil exporter meets it through a buyer in such a country.',
+        text: '**Tied to a third country:** Its country, or that of a direct counterparty, is outside Russia and the coalition.',
       },
       {
         kind: 'figure',
@@ -268,7 +268,11 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'The period follows the calendar of the sanctions: by 2024, the embargo, the price cap and the first designations of shipowners that break that cap are in place[^11]. The years 2024-2026 show how trade has adapted to them.',
+        text: 'The authors chose 2024-2026 because new sanctions[^11] closed most of the routes used in 2022-2023: the report looks at the routes that still work.',
+      },
+      {
+        kind: 'p',
+        text: 'In the database, 637 entities are under watch: 413 in the pay layer, 7 in the finance layer and 217 in the fight layer. For 572 of the 637, each condition rests on an official document.',
       },
       {
         kind: 'figure',
@@ -292,7 +296,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'In total, 637 entities are under watch, counting the ships of one management company as a single entity. The pay layer holds the most, because the lists of designated ships are long and well documented. For 572 of them, each of the three conditions rests on a document from an official issuer. In the data release, 12 of the 637 entities under watch no longer have an open designation. A semi-automated verification system checks the facts: automatic rules, AI reviewers, fixed checks of each excerpt and checks by the authors. Annex A describes the collection, the checks and the count.',
+        text: 'In the data release, 12 of the 637 entities under watch no longer have an open designation. A semi-automated verification system checks the facts: automatic rules, AI reviewers, fixed checks of each excerpt and checks by the authors. Annex A describes the collection, the checks and the count.',
       },
     ],
     notes: [
@@ -1367,7 +1371,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Active in 2024-2026:** A relation dated in that period (designation, port call, transshipment, event);',
+        text: '**Active in 2024-2026:** Any relation dated in that period, or an event dated in that period at the place;',
       },
       {
         kind: 'li',
@@ -1379,7 +1383,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'The count of entities under watch is 637. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-11-30. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. An entity that the release does not hold is not counted. A date that the release gives as a claim of a relation is a date of that relation. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 572 of the 637 entities under watch, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of each entity under watch from its member entities, because the release gives no layer: Pay 413, Finance 7, Fight 217. The count changes with the rule: 1,323 entities if Russia counts as a third country, 574 with no country of a counterparty. An earlier count of 493 (450 entities of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. In the data release, a port call carries no date (the dated calls of figure 8 come from the Global Fishing Watch file), so most entities under watch are active only by a dated designation. Figures 8 and 9 and the tanker counts of sections 2.5 and 2.6 use a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. These counts differ from the counts of the data release, because the scan has an earlier cut date and because the release does not count LNG tankers as tankers.',
+        text: 'The period runs from 1 January 2024 to 31 December 2026. The count of entities under watch is 637. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-11-30. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. An entity that the release does not hold is not counted. A date that the release gives as a claim of a relation is a date of that relation. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 572 of the 637 entities under watch, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of each entity under watch from its member entities, because the release gives no layer: Pay 413, Finance 7, Fight 217. The count changes with the rule: 1,323 entities if Russia counts as a third country, 574 with no country of a counterparty. An earlier count of 493 (450 entities of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. In the data release, a port call carries no date (the dated calls of figure 8 come from the Global Fishing Watch file), so most entities under watch are active only by a dated designation. Figures 8 and 9 and the tanker counts of sections 2.5 and 2.6 use a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. These counts differ from the counts of the data release, because the scan has an earlier cut date and because the release does not count LNG tankers as tankers.',
       },
       {
         kind: 'h3',
@@ -1468,12 +1472,12 @@ export const figureTexts = {
       {
         letter: 'b',
         title: 'Active in 2024-2026',
-        text: 'production, transit or new designation, dated',
+        text: 'a fact dated in that period',
       },
       {
         letter: 'c',
         title: 'Tied to a third country',
-        text: 'seat, flag or counterparty outside the coalition',
+        text: 'its country or a direct counterparty outside Russia and the coalition',
       },
     ],
     arrows: [
@@ -1609,11 +1613,10 @@ export const figureTexts = {
         'désigné, ou détenu à 50 % ou plus par une personne désignée':
           'designated, or owned 50% or more by a designated person',
         'Actif en 2024-2026': 'Active in 2024-2026',
-        'production, transit ou désignation nouvelle, datés':
-          'production, transit or new designation, dated',
+        'production, transit ou désignation nouvelle, datés': 'a fact dated in that period',
         'Passe par un pays tiers': 'Tied to a third country',
         'siège, pavillon ou contrepartie hors de la coalition':
-          'seat, flag or counterparty outside the coalition',
+          'its country or a direct counterparty outside Russia and the coalition',
       },
     },
     '2': {
@@ -2250,7 +2253,7 @@ export const methodUi = {
   timeline: {
     label: 'Sanctions, 2014-2026',
     // Quoted from the text of the part.
-    period: 'The years 2024-2026',
+    period: '2024-2026',
     gap: '2015-2021: no event in this figure',
     unit: 'Event, dated',
     actors: { COAL: 'COALITION', US: 'OFAC' } as Readonly<Partial<Record<string, string>>>,

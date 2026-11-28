@@ -1,7 +1,7 @@
 import { EntityGlyph } from '@/shared/entity-glyph';
 
 // The method diagram of the report: three layers, the two paths of the money, and the three conditions
-// of an entity under watch. The figure numbers stay out of the image.
+// of a critical node. The figure numbers stay out of the image.
 // Each layer takes the hue and the glyph of the entity type it is about (port, military unit, bank).
 const cards = [
   {
@@ -34,7 +34,11 @@ const cards = [
     items: ['Banks, Russian and foreign', 'Payment agents and SPFS', 'Crypto and stablecoins'],
   },
 ] as const;
-const conditions = ['Exposed to sanctions', 'Active 2024–2026', 'Tied to a third country'] as const;
+const conditions = [
+  'Exposed to sanctions',
+  'Active in 2024-2026',
+  'Tied to a third country',
+] as const;
 const W = 240,
   H = 124;
 
@@ -99,24 +103,24 @@ export function MethodDiagram() {
         <text x="320" y="300" textAnchor="middle" className="method-note">
           Pays for imports
         </text>
-        {/* The entity under watch: the one bright card (FigureCard), the three conditions as rings, their
+        {/* The critical node: the one bright card (FigureCard), the three conditions as rings, their
             meeting point as the one chromatic mark. */}
         <g transform="translate(456,0)">
           <rect width="184" height={H} className="method-figure" />
           <text x="14" y="24" className="method-label on-figure">
-            Entity under watch
+            Under watch
           </text>
           <text x="14" y="40" className="method-label on-figure">
             All three
           </text>
           {[
-            [162, 30],
-            [156, 41],
-            [168, 41],
+            [156, 20],
+            [148, 33],
+            [164, 33],
           ].map(([cx, cy], i) => (
-            <circle key={i} cx={cx} cy={cy} r="9" className="method-ring" />
+            <circle key={i} cx={cx} cy={cy} r="11" className="method-ring" />
           ))}
-          <circle cx="162" cy="37" r="3.5" className="method-core" />
+          <circle cx="156" cy="29" r="3.5" className="method-core" />
           {conditions.map((c, i) => (
             <g key={c} transform={`translate(14,${68 + i * 22})`}>
               <line x2="156" y1="-16" y2="-16" className="method-rule" />
