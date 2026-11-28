@@ -14,20 +14,20 @@ describe('opening copy', () => {
       if (note !== '') expect(items[index]).toContain(`[^${note}]`);
     });
     // The value column shows one number for each item; the other numbers stay in its sentence.
-    expect(items[2]).toContain('sixteen');
-    expect(items[4]).toContain('$19 to $27');
+    expect(items[7]).toContain('sixteen');
+    expect(items[2]).toContain('$19 to $27');
     const values = summaryValues(items, openingUi.summary.values).map((value) =>
       value.kind === 'number' ? `${value.label} ${value.format(value.value)}` : value.text,
     );
     expect(values).toEqual([
       '637',
-      '87 days',
-      '427 of 757',
       'Customers 84%',
-      'Oil 79%',
+      '$19 to $27',
       '18.5%',
       'Currency 53%',
       'Components 77%',
+      'Fleet 79%',
+      'sixteen',
     ]);
   });
 

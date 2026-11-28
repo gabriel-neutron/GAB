@@ -19,7 +19,7 @@ interface ReadSource {
 
 const NOTE_LINE = /^\[\^([^\]]+)\]: (.*)$/;
 const FIGURE_LINE = /^FIGURE: Figure (\d+): /;
-const NOTE_OF_FIGURE = '*Note.* ';
+const NOTE_OF_FIGURE = '*Source:* ';
 
 /** Read a source text: the body of each part, the figure captions and the notes. A heading, the
  * text inside a figure and the title of a figure with no number are not body text. */

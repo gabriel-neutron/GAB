@@ -2,29 +2,27 @@
 
 **The problem.** Since 2022, the European Union, the United States, the United Kingdom and their allies (the coalition) have imposed wide-ranging sanctions on Russia, from oil and gas to military technology. Yet the war goes on, and it costs more and more: at constant prices, the defence budget planned for 2025 is 2.6 times the spending of 2021. Where do the money and the technology that let Russia fight come from?
 
-**The method.** The authors built a database of more than 7,100 entities, where every fact points to an archived document. In it, the report looks for the entities under watch: the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that the EU, OFAC or the United Kingdom has designated, that are active in 2024-2026 and that are tied to a country that does not apply these sanctions.
+**The method.** The authors built a database of more than 7,100 entities, where every fact points to an archived document. In it, the report looks for the entities under watch: the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that the EU, OFAC or the United Kingdom has designated (put on a sanctions list), that are active in 2024-2026 and that are tied to a country that does not apply these sanctions.
 
 **The result.** Sanctions make the war more costly for Russia, but they do not cut its money or its goods: trade moves to partners that do not apply the sanctions, and to a parallel market of tankers, payment relays and companies with no documented owner.
 
-**What the report measures.**
+**What the report finds.**
 
-- –**Entities under watch:** The database holds 7,162 entities. 637 of them are under watch, with the ships of one management company counted as one: 413 in the pay layer, 7 in the finance layer and 217 in the fight layer. The finance layer is small because the database covers banks poorly.
-
-- –**Fleet:** When the EU and the United States designate (put on a sanctions list) the same tanker, the United States does so first in more than eight cases out of ten; for tankers on two or more lists, the median gap from the first designation to the second is 87 days. Of 711 tankers with a dated designation, 318 called at a port at least once after it, and 22 of them called in the EU or the United Kingdom.
-
-- –**Owners and managers:** In the private fleet and in oil trading, the ownership chains often end at a company with no documented owner: according to the sanctions lists and, for part of them, to Ukrainian military intelligence (GUR), a party to the conflict, sixteen shipowners or managers (firms that run ships for their owners) each own or operate at least six designated vessels with no documented ultimate owner (the person or state at the top of the chain). On the archived pages of GUR, 427 of 757 ships that give both dates show an owner or manager that started after the designation.
-
-**What the sources show.**
+- –**Entities under watch:** The database holds 7,162 entities. 637 of them are under watch: 413 in the pay layer, 7 in the finance layer and 217 in the fight layer. The finance layer is small because the database covers banks poorly.
 
 - –**Customers:** From 2021 to 2025, EU purchases from Russia fell by 84%[^1]; China became Russia's first customer, and India bought twenty times as much Russian crude by weight.
 
-- –**Oil:** According to the KSE Institute of the Kyiv School of Economics, the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026[^2]. From August 2023 to October 2025, Urals, the main Russian export crude, sold $10 to $16 below Brent, the North Sea reference crude, each month; since November 2025, after OFAC, the US Treasury sanctions office, designated Rosneft and Lukoil, it has sold $19 to $27 below.
+- –**Oil price:** From August 2023 to October 2025, Urals, the main Russian export crude, sold $10 to $16 below Brent, the North Sea reference crude, each month; since November 2025, after OFAC, the US Treasury sanctions office, designated Rosneft and Lukoil, it has sold $19 to $27 below.
 
 - –**Budget:** The share of oil and gas in federal revenue falls from 51% in 2014 to 18.5% in January–September 2026, partly because that revenue is shrinking[^3].
 
 - –**Currency:** The rouble was the currency of payment of 53% of Russian exports in 2025, against 14% in 2021[^4], and, according to the Russian government, the rouble and the yuan settle almost all payments with China.
 
 - –**Components:** Of the priority goods for weapons that its partners declared as sold to Russia in 2025, China supplied 77% and Hong Kong 11%[^5], and parts made after the invasion turned up in Russian weapons in 2023.
+
+- –**Fleet:** According to the KSE Institute of the Kyiv School of Economics, the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026[^2]. Of 711 tankers with a dated designation, 318 called at a port at least once after it, and 22 of them called in the EU or the United Kingdom.
+
+- –**Owners:** According to the sanctions lists and, for part of them, to Ukrainian military intelligence (GUR), a party to the conflict, sixteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner (the person or state at the top of the chain).
 
 
 [^1]: authors' calculations based on @bruegel-tracker, fig. 2
@@ -39,7 +37,7 @@
 
 FIGURE: Figure 1: Timeline of the main sanctions, 2014-2026
 
-*Note.* Data: Regulations (EU) No 269/2014 and No 833/2014; Regulations (EU) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 and 2026/506; Implementing Regulations (EU) 2022/2368, 2023/251 and 2026/124; U.S. Department of the Treasury (2023); Office of Foreign Assets Control (2025)[^10].
+*Source:* Council of the EU (2014-2026); European Commission (2022-2026); US Treasury (2023); OFAC (2025)[^10].
 
 ## Introduction
 
@@ -103,7 +101,7 @@ An entity is under watch when it meets all three conditions below. The rule appl
 
 FIGURE: Figure 2: The three layers of the Russian war economy and their links
 
-*Note.* Diagram by the authors.
+*Source:* Diagram by the authors.
 
 These are the entities where sanctions apply but activity goes on with a third country: where circumvention may be at work, and where a new measure could have an effect.
 
@@ -137,7 +135,7 @@ In 2021, Gazprom sold 148.8 bcm (billion cubic metres) of pipeline gas to Europe
 
 FIGURE: Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025
 
-*Note.* Data: Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026). Authors' calculations[^21]. Mirror data, reported by the buyer country. Coalition: EU, United States, United Kingdom, Japan, South Korea, Switzerland, Norway. Crude: EU = the 27 member states; customs data. Crude of Turkey: CREA (2026), an estimate.
+*Source:* Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026)[^21]. Mirror data, reported by the buyer country. Coalition: EU, United States, United Kingdom, Japan, South Korea, Switzerland, Norway. Crude: EU = the 27 member states; customs data. Crude of Turkey: CREA (2026), an estimate.
 
 [^12]: authors' calculations based on @wb-oil-rents; @wb-gas-rents | Oil rents (9.67%) plus natural gas rents (5.86%) in 2021.
 
@@ -165,7 +163,7 @@ The report compares Urals, the main Russian export crude, with Brent, the North 
 
 FIGURE: Figure 4: Brent, Urals and the EU price cap, 2022-2026
 
-*Note.* Data: Federal Tax Service of Russia (2024-2026); Ministry of Finance of Russia (2023); Ministry of Economic Development of Russia (2026); World Bank (2026); EU regulations (2022-2026)[^25].
+*Source:* Federal Tax Service of Russia (2024-2026); Ministry of Finance of Russia (2023); Ministry of Economic Development of Russia (2026); World Bank (2026); EU regulations (2022-2026)[^25].
 
 Above the cap, Urals travels mostly on ships and with insurers outside the coalition. The cap does not bind them (section 2.5)[^26]. Sanctions still push its price down, well beyond the quality gap[^27]. From August 2023 to October 2025, Urals was worth $10 to $16 less than Brent in each month. Since November 2025, after OFAC designated Rosneft and Lukoil[^28] and several Indian refiners stopped buying[^29], it has been worth $19 to $27 less[^30]. The report sees a probable effect of this designation, but the series shows only a coincidence of dates.
 
@@ -203,7 +201,7 @@ The share of oil and gas in federal revenue falls (figure 5) for two reasons. Th
 
 FIGURE: Figure 5: Oil, gas and defence in the federal budget, 2014-2026
 
-*Note.* Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); Cooper (2023; 2025); World Bank (2026). Authors' calculations[^37]. Constant 2021 prices (GDP deflator). Hollow points: January-September (2026 provisional), estimates or planned budget.
+*Source:* Ministry of Finance of Russia (2026); Korsunskaya (2024); Cooper (2023; 2025); World Bank (2026)[^37]. Constant 2021 prices (GDP deflator). Hollow points: January-September (2026 provisional), estimates or planned budget.
 
 The rest of the economy also pays more: profit tax went from 20 to 25% in 2025, and VAT from 20 to 22% in 2026[^38]. This shift is deliberate: the budget guidelines of the Ministry of Finance for 2026-2028 present the VAT rise as one way to raise non-oil-and-gas revenue to 80% of federal revenue[^39]. The report's hypothesis is that an ever more expensive defence rests more and more on other taxes and on the deficit.
 
@@ -221,7 +219,7 @@ The rest of the economy also pays more: profit tax went from 20 to 25% in 2025, 
 
 Crude export ports: Primorsk, Ust-Luga, Novorossiysk
 
-*Note.* Base map: Natural Earth.
+*Source:* Base map: Natural Earth.
 
 Russian crude that does not leave by pipeline leaves Russia through a few ports, mainly Primorsk and Ust-Luga on the Baltic, Novorossiysk on the Black Sea and Kozmino on the Pacific[^40]. Traffic at the first three, all goods included, held up despite the embargo. In 2025, it exceeded its 2021 level (figure 6)[^41].
 
@@ -241,7 +239,7 @@ To leave ports closed to companies of the coalition, the crude needs ships that 
 
 FIGURE: Figure 6: Traffic at Russian oil ports, 2014-2025 and January-April 2026
 
-*Note.* Data: ASOP (2022-2026); PortNews (2018; 2019; 2021); NMTP (2017; 2020)[^44]. Novorossiysk includes the CPC terminal.
+*Source:* ASOP (2022-2026); PortNews (2018; 2019; 2021); NMTP (2017; 2020)[^44]. Novorossiysk includes the CPC terminal.
 
 Most Russian crude exported by sea travels on these ships (figure 7). Among the designated tankers, the most common flags are those of Panama, Russia, Barbados and Gabon (figure 9). Apart from Russia, these are flags of convenience (of states that register foreign-owned ships with few checks); they also serve ordinary trade, so a flag alone does not signal circumvention. According to the US Treasury, Sovcomflot, the Russian state shipowner, transferred the management of tankers to Stream Ship Management, based in the United Arab Emirates, to circumvent sanctions. In January 2025, the United States designated that company for its activity in the Russian energy sector[^45].
 
@@ -255,7 +253,7 @@ Sanctions also target the ships themselves, by their International Maritime Orga
 
 FIGURE: Figure 7: Russian oil exported by sea, January 2026
 
-*Note.* Data: Dodonov et al. (2026). “Other countries” is a balance calculated by the authors. Shares: Raghunandan et al. (2026), based on Kpler[^48].
+*Source:* Dodonov et al. (2026). “Other countries” is a balance calculated by the authors. Shares: Raghunandan et al. (2026), based on Kpler[^48].
 
 The three sanctions regimes do not move at the same pace. When the EU and the United States designate the same ship, the United States does so first for 168 of the 198 tankers that both designate, more than eight cases out of ten (figure 9)[^49]. For tankers on two or more of the three lists, the median gap from the first designation to the second is 87 days[^130].
 
@@ -267,7 +265,7 @@ The three sanctions regimes do not move at the same pace. When the EU and the Un
 
 FIGURE: Figure 8: Port calls of designated tankers after their designation
 
-*Note.* Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations, from a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. Powered by Global Fishing Watch[^50].
+*Source:* Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Data from a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. Powered by Global Fishing Watch[^50].
 
 A designated ship also often changes hands. On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships that give both a designation date and an owner or manager date show an owner or manager that started after the designation[^51]. The report's hypothesis is that targeting the company that manages the tankers, and the country where it is based, would reach the fleet more surely than targeting each ship.
 
@@ -281,7 +279,7 @@ A designated ship also often changes hands. On the archived pages of Ukrainian m
 
 FIGURE: Figure 9: Tankers designated by the EU, the United Kingdom and OFAC
 
-*Note.* Data: Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations[^52].
+*Source:* Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026)[^52].
 
 [^52]: authors' calculations based on @ofac-sdn; @uk-list; @eu-833-2014-cons-2026 | Data: a record scan of 30 October 2026, LNG tankers included.
 
@@ -295,7 +293,7 @@ From 2022, the United States[^53] and the United Kingdom[^54] froze the assets o
 
 FIGURE: Figure 10: Settlement currency of Russian exports and imports, 2019-2025
 
-*Note.* Data: Central Bank of Russia (2026)[^57]. Currencies of “unfriendly” countries: “unfriendly countries” is the term of the Russian government (list 430-r); the series adds up the currencies of these countries. Shares of all settlements, in %.
+*Source:* Central Bank of Russia (2026)[^57]. Currencies of “unfriendly” countries: “unfriendly countries” is the term of the Russian government (list 430-r); the series adds up the currencies of these countries. Shares of all settlements, in %.
 
 [^53]: @ust-jy0608, p. 1; @ust-jy0705, p. 1
 
@@ -395,7 +393,7 @@ Hong Kong is a platform. It takes a rising share of Russian imports of processor
 
 FIGURE: Figure 11: Exports of CHP goods to Russia, 2021-2025
 
-*Note.* Data: UN Comtrade (2026); Risinger et al. (2026). Authors' calculations[^85].
+*Source:* UN Comtrade (2026); Risinger et al. (2026)[^85].
 
 ### 4.2 The price of the goods
 
@@ -451,7 +449,7 @@ According to the latest disclosures, the state holds the large companies through
 
 FIGURE: Figure 12: Who owns oil, gas and the fleet
 
-*Note.* Data: OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Authors' calculations[^101]. Shares: the documents of Rosneft, Gazprom, Gazprombank and TASS above, not the data release.
+*Source:* OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024)[^101]. Shares: the documents of Rosneft, Gazprom, Gazprombank and TASS above, not the data release.
 
 ### 5.2 The fleet
 
@@ -549,21 +547,9 @@ Sanctions weigh on the Russian economy, but they do not stop it: oil and gas rev
 
 Russia adapts in two ways. It relies on a parallel market on the margins of Western sanctions: tankers outside the coalition, managers based in third countries, payment agents and short-lived shell companies. And, legally, it turns to partners that do not apply the sanctions: China and India buy its oil, and China sells it most of the priority goods for weapons. These partners pay less for its oil and charge more for their goods, because Russia has few other choices. According to the report's hypothesis, part of the cost of sanctions for Russia thus becomes a gain for its new partners.
 
+Sanctions therefore work only in part, for three reasons. First, only the coalition applies them: Russia's main partners do not, and the UN Security Council, where Russia holds a veto, has decided no sanctions against it (section 4.1). Second, the coalition does not act as one: for tankers on two or more of the three lists, the median gap from the first designation to the second is 87 days (section 2.6). Third, new measures are slower than the channels that they target.
+
 EU sanctions follow this shift step by step. They go up the chain: the product, then the means, then the source. The EU first targeted oil, through the embargo and the price cap, then the vessels that carry it, then the ports it leaves from. Each step answers the circumvention of the one before and arrives late; the report assumes that the parallel market re-forms faster than the lists grow.
-
-## Recommendations
-
-- –A sanctions authority of the EU can use each new OFAC tanker designation as an early signal for its own review, because OFAC lists a tanker that both designate first in more than eight cases out of ten.
-
-- –A sanctions authority of the EU or the United Kingdom can check the port calls in its own ports of the 22 designated tankers that called there after their designation.
-
-- –An authority that lists ships can check, at each update, the current owner and manager of the ships it has already listed, because, on the pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships show an owner or manager that started after the designation.
-
-- –Where no source names the ultimate owner, an authority can designate each company for its activity and attach each new manager or trader to the group it replaces, as the Council of the EU did for Citrine Marine and Nord Axis.
-
-- –A researcher can complete the mirror data with customs data for the United Arab Emirates, Vietnam, Kazakhstan and Thailand (section 6.1), to learn what share of the priority goods for weapons passes through them.
-
-- –A funder can pay for the archiving of AIS identity histories, to learn how long a designated vessel takes to change identity, and for a check of the fleet facts by a person, because the findings on changes of owner rest on one source that is a party to the conflict.
 
 ## Annex A Research method
 

@@ -139,11 +139,15 @@ describe.each([['en', en]] as const)('the citations of the %s page', (lang, copy
   it('shows the short reference of each note of a text block in its parenthesis', () => {
     for (const part of copy.parts)
       for (const block of part.blocks.filter((one) => one.kind !== 'figure'))
-        for (const [, id] of block.text.matchAll(/\[\^([^\]]+)\]/g)) {
-          const note = part.notes.find((one) => one.id === id);
+        for (const match of block.text.matchAll(/\[\^([^\]]+)\]/g)) {
+          const note = part.notes.find((one) => one.id === match[1]);
           const cite = citeText(note?.text ?? '');
+          // A scroll figure shows a range of the sentences of its paragraph: a sentence that the
+          // page does not show has no reference there.
+          const before = block.text.slice(Math.max(0, match.index - 24), match.index);
+          const shown = /[[\]*|]/.test(before) || html.includes(markup(before));
           // A note with no reference in the text shows only its number.
-          if (cite !== '') expect(html).toContain(`(${markup(cite)})`);
+          if (cite !== '' && shown) expect(html).toContain(`(${markup(cite)})`);
         }
   });
 

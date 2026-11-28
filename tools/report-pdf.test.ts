@@ -118,8 +118,8 @@ describe('report PDF', () => {
     expect(withReferences(`<p>fell 84%;${sup('1')} then</p>`, notes)).toBe(
       '<p>fell 84% <span data-cite="1">(A, 2026)</span>; then</p>',
     );
-    expect(withReferences(`<p><em>Note.</em> Data: A (2026).${sup('1')}</p>`, notes)).toBe(
-      '<p><em>Note.</em> Data: A (2026).</p>',
+    expect(withReferences(`<p><em>Source:</em> A (2026).${sup('1')}</p>`, notes)).toBe(
+      '<p><em>Source:</em> A (2026).</p>',
     );
     const page = withReferences(`<p>x.${sup('2')}</p>${rule}`, notes);
     expect(page).toContain('<span data-cite="2">(B)</span><sup data-fn="1"');

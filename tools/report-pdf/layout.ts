@@ -41,9 +41,9 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
     ['13px', '18.5px'],
     ['12.7px', '18px'],
   ] as const;
-  // The first pages (cover, two pages of summary, contents with the list of figures) are fixed: no text comes into them
+  // The first pages (cover, summary, contents with the list of figures) are fixed: no text comes into them
   // from another page.
-  const FIXED = 4;
+  const FIXED = 3;
   // Each part starts on a new page: no part joins the page of the part before it.
   const JOIN = Infinity;
 

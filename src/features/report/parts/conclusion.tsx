@@ -14,7 +14,7 @@ const SENTENCE = /(?<=[.?])\s+/;
 export function ConclusionPart({ part }: { readonly part: ReportPart }) {
   const { parts } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
-  const [effect, around, answer, advice, ...rest] = part.blocks.map((block) => block.text);
+  const [effect, around, reasons, answer, ...rest] = part.blocks.map((block) => block.text);
   const [statement, ...steps] = answer === undefined ? [] : answer.split(SENTENCE);
   const paragraph = (text: string | undefined, key?: string) =>
     text === undefined ? null : (
@@ -29,6 +29,7 @@ export function ConclusionPart({ part }: { readonly part: ReportPart }) {
         <div className="lg:col-span-8 lg:col-start-3">
           {paragraph(effect)}
           {paragraph(around)}
+          {paragraph(reasons)}
         </div>
       </div>
       {steps.length === 3 ? (
@@ -54,7 +55,6 @@ export function ConclusionPart({ part }: { readonly part: ReportPart }) {
       )}
       <div className="pt-10 pb-24 md:pt-14 md:pb-32 lg:grid lg:grid-cols-12 lg:gap-8">
         <div className="lg:col-span-8 lg:col-start-3">
-          {paragraph(advice)}
           {rest.map((text, index) => paragraph(text, String(index)))}
         </div>
       </div>

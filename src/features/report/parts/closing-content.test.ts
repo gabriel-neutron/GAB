@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { parts } from '../content';
 
 describe('closing copy', () => {
-  it('splits the third paragraph of the conclusion into a statement and three sentences', () => {
-    const answer = parts.find((part) => part.slug === 'conclusion')?.blocks[2]?.text ?? '';
+  it('splits the last paragraph of the conclusion into a statement and three sentences', () => {
+    const answer = parts.find((part) => part.slug === 'conclusion')?.blocks[3]?.text ?? '';
     const [, ...steps] = answer.split(/(?<=[.?])\s+/);
     expect(steps).toHaveLength(3);
     // The code gives sentences 1 and 2 to the steps of the EU and sentence 3 to their delay.
