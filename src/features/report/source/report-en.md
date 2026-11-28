@@ -2,7 +2,7 @@
 
 **The problem.** Since 2022, the European Union, the United States, the United Kingdom and their allies (the coalition) have imposed wide-ranging sanctions on Russia, from oil and gas to military technology. Yet the war goes on, and it costs more and more: at constant prices, the defence budget planned for 2025 is 2.6 times the spending of 2021. Where do the money and the technology that let Russia fight come from?
 
-**The method.** The authors built a database of more than 7,100 entities, where every fact points to an archived document. In it, the report looks for the entities under watch: the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that are exposed to EU, OFAC or UK sanctions, active in 2024-2026 and tied to a country that does not apply them.
+**The method.** The authors built a database of more than 7,100 entities, where every fact points to an archived document. In it, the report looks for the entities under watch: the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that the EU, OFAC or the United Kingdom has designated, that are active in 2024-2026 and that are tied to a country that does not apply these sanctions.
 
 **The result.** Sanctions make the war more costly for Russia, but they do not cut its money or its goods: trade moves to partners that do not apply the sanctions, and to a parallel market of tankers, payment relays and companies with no documented owner.
 

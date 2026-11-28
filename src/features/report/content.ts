@@ -89,7 +89,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '**The method.** The authors built a database of more than 7,100 entities, where every fact points to an archived document. In it, the report looks for the entities under watch: the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that are exposed to EU, OFAC or UK sanctions, active in 2024-2026 and tied to a country that does not apply them.',
+        text: '**The method.** The authors built a database of more than 7,100 entities, where every fact points to an archived document. In it, the report looks for the entities under watch: the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that the EU, OFAC or the United Kingdom has designated, that are active in 2024-2026 and that are tied to a country that does not apply these sanctions.',
       },
       {
         kind: 'p',
