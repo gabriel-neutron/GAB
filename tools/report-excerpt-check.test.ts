@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { checkReport, holds, noteIdentifiers, notesOf } from './report-excerpt-check.ts';
+import { checkReport, holds, noteIdentifiers, notesOf, plainName } from './report-excerpt-check.ts';
 
 const claim = (over: Record<string, string>) => ({
   claim_id: '',
@@ -194,4 +194,45 @@ test('a condition reads each of its documents, and two excerpts of one page read
   expect(
     checks.filter((one) => one.fact === 'condition').map((one) => `${one.ref} ${one.verdict}`),
   ).toEqual(['N-1/cond2 pass', 'N-1/cond3 fail']);
+});
+
+test('a name holds with no punctuation, no legal form and no place in brackets', () => {
+  expect(plainName('CJSC "Alfa-Bank" (Belarus)')).toBe('alfa bank belarus');
+  expect(holds('BEL0166,,CJSC Alfa Bank Belarus', 'Alfa-Bank (Belarus)')).toBe(true);
+  expect(
+    holds(
+      'RUS2987,,OJSC CAPITAL BANK OF CENTRAL ASIA',
+      'Capital Bank of Central Asia (Kyrgyzstan)',
+    ),
+  ).toBe(true);
+  expect(holds('TSK VEKTOR, OOO', 'TSK Vektor')).toBe(true);
+  expect(holds('Bank of Asia', 'Bank of Central Asia')).toBe(false);
+});
+
+test('a condition of a manager rests on a fact of a vessel that it operates', () => {
+  const fleetFiles = {
+    entities: [
+      { id: 'mgr', label: 'TEST SHIPPING LLC', type: 'company' },
+      { id: 'ship', label: 'KRUGER', type: 'vessel' },
+      { id: 'act', label: 'Executive Order 14024', type: 'legal_act' },
+    ],
+    relations: [{ id: 'op', type: 'operates', from_id: 'mgr', to_id: 'ship' }],
+    claims: [
+      claim({
+        claim_id: 'd',
+        subject_id: 'ship',
+        relation_type: 'designated_by',
+        object_id: 'act',
+        document_id: 'doc_4',
+        excerpt: 'KRUGER (IMO 9123456) Vessel',
+      }),
+    ],
+  };
+  const checks = checkReport(fleetFiles, {
+    nodes: [node('N-1', 'mgr', { cond1_sanctions_state: 'record', cond1_doc: 'doc_4' })],
+    edges: [],
+    notes: new Map(),
+    noteDocuments: new Map(),
+  });
+  expect(checks.find((one) => one.ref === 'N-1/cond1')?.verdict).toBe('pass');
 });

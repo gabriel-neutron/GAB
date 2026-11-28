@@ -17,6 +17,7 @@ import { findExcerpt } from '@gab/tools/excerpt';
 import edges from '../src/features/report/edges-data.ts';
 import nodes from '../src/features/report/nodes-data.ts';
 import {
+  nodeMembers,
   readRelease,
   reportRelease,
   valuesOf,
@@ -45,6 +46,23 @@ export interface ReportFacts {
 }
 
 const ACT_LINKS = new Set(['designated_by', 'restricted_by', 'exempted_by']);
+
+/** Names that a stored page of the report writes and that the record does not hold yet, by the
+ * label of the entity: a name in Cyrillic, a short form that the page defines, a port. Each one was
+ * read on its page (step 4 of the excerpt check, 2026-11-28). shortcut: a list in code; move each
+ * name to the record as an alias when the record takes it. */
+const PAGE_NAMES: Readonly<Record<string, readonly string[]>> = {
+  'VTB Bank': ['Банк ВТБ'],
+  'VTB Bank (Kazakhstan)': ['Банк ВТБ (Казахстан)'],
+  Gazprombank: ['Газпромбанк'],
+  'VEB.RF': ['ВЭБ.РФ'],
+  'Government of the Russian Federation': ['Government of Russia', 'GoR'],
+  'Nizhny Novgorod refinery': ['Кстовский НПЗ'],
+  'Port of Primorsk': ['Приморск'],
+  'Tambov Powder Plant': ['Tambov gunpowder plant'],
+  'Longkou Pt': ['Longkou port'],
+  'Beihai LNG Terminal': ['Beihai terminal'],
+};
 const NAME_KEYS = new Set(['aliases', 'former_names', 'name_cyrillic', 'name_other']);
 
 /** An identifier that a note names: an IMO number, an LEI, a UK list id or an EU act number. */
@@ -60,19 +78,35 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
   const claims = [...claimsOf(files.claims).values()];
   const ids = identifiersOf(claims);
   const label = new Map(files.entities.map((one) => [one['id'] ?? '', one['label'] ?? '']));
+  const type = new Map(files.entities.map((one) => [one['id'] ?? '', one['type'] ?? '']));
   const names = new Map<string, string[]>();
   for (const entity of files.entities) names.set(entity['id'] ?? '', [entity['label'] ?? '']);
   for (const claim of claims)
     if (claim.kind === 'attribute' && NAME_KEYS.has(claim.attribute))
       names.get(claim.subject)?.push(...safeValues(claim.value));
+  for (const entity of files.entities)
+    names.get(entity['id'] ?? '')?.push(...(PAGE_NAMES[entity['label'] ?? ''] ?? []));
   // The report gives its own name and short label of each node: a list writes "Primorsk".
   for (const node of facts.nodes)
     for (const one of entitiesOf(node))
       names.get(one)?.push(node['name'] ?? '', node['short_label'] ?? '');
-  const excerpt = (row: Row) => row['excerpt'] ?? '';
+  // The title of a page names its subject, as a page of a pipeline that writes "the pipeline", and
+  // the address of a register card can hold the IMO number of its vessel.
+  const excerpt = (row: Row) =>
+    `${row['excerpt'] ?? ''}\n${row['document_title'] ?? ''}\n${row['document_address'] ?? ''}`;
   const names_ = (text: string, entity: string) =>
-    (names.get(entity) ?? []).some((one) => one.trim() !== '' && holds(text, one)) ||
-    [...(ids.get(entity)?.values() ?? [])].flat().some((one) => holdsIdentifier(text, one));
+    (names.get(entity) ?? []).some(
+      (one) => one.trim() !== '' && (holds(text, one) || holds(text, shortName(one))),
+    ) || [...(ids.get(entity)?.values() ?? [])].flat().some((one) => holdsIdentifier(text, one));
+  // The vessels of a manager, or failing that of an owner, are members of its node (A.3), and a
+  // node of a shipowner names the vessels that it owns or operates.
+  const fleet = nodeMembers(files);
+  for (const one of files.relations)
+    if (one['type'] === 'owns' || one['type'] === 'operates')
+      fleet.set(one['from_id'] ?? '', [
+        ...(fleet.get(one['from_id'] ?? '') ?? []),
+        one['to_id'] ?? '',
+      ]);
   const touching = new Map<string, Claim[]>();
   for (const claim of claims)
     for (const end of claim.kind === 'relation' ? [claim.subject, claim.object] : [claim.subject])
@@ -87,6 +121,9 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
       return values.length > 0 && values.every((one) => holds(text, one));
     }
     if (ACT_LINKS.has(claim.relationType)) return names_(text, claim.subject);
+    // GAB makes the label of an event ("strike — site — day"), so no page writes it: the excerpt
+    // must name the place.
+    if (type.get(claim.subject) === 'event') return names_(text, claim.object);
     if (names_(text, claim.subject) && names_(text, claim.object)) return true;
     // A register page names a vessel by its IMO number in one excerpt and its manager in the next:
     // the excerpts of the claim on one page read together only when one of them gives an
@@ -146,7 +183,9 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
       const document = documents.join(';');
       if (state !== 'record' || documents.length === 0) continue;
       // The sanctions condition rests on a link to an act; the other two on any claim of the node.
-      const cited = touchingAll(members).filter(
+      // A condition of the node of a manager can rest on a fact of one of its vessels.
+      const withFleet = [...new Set(members.flatMap((one) => [one, ...(fleet.get(one) ?? [])]))];
+      const cited = touchingAll(withFleet).filter(
         (claim) =>
           (n !== '1' || ACT_LINKS.has(claim.relationType)) &&
           claim.citations.some((row) => documents.includes(row['document_id'] ?? '')),
@@ -196,7 +235,9 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
         (via === ''
           ? ends(claim, from) && ends(claim, to)
           : (ends(claim, from) || ends(claim, to)) &&
-            [claim.subject, claim.object].some((one) => label.get(one) === via)),
+            [claim.subject, claim.object].some(
+              (one) => plainName(label.get(one) ?? '') === plainName(via),
+            )),
     );
     if (between.length === 0) {
       add('edge', ref, documents.join(';'), 'fail', 'relation_not_in_release');
@@ -238,6 +279,15 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
   return checks;
 };
 
+/** A name with no legal form and no word of its kind: "LLC SKF Arktika" is also "SKF Arktika", and
+ * "Nizhny Novgorod refinery" is also "Nizhny Novgorod". A name of fewer than four letters is none. */
+const FORMS =
+  /^(?:(?:llc|jsc|pjsc|ojsc|cjsc|ooo|oao|pao|zao|ao|ltd|limited|inc|co|corp|plc|the)\.?,?\s+)+|(?:,?\s+(?:llc|jsc|pjsc|ojsc|ooo|ltd|limited|inc|co|corp|plc|refinery|terminal|port|plant|oil pipeline|pipeline)\.?)+$/giu;
+export const shortName = (name: string): string => {
+  const short = name.replace(FORMS, '').trim();
+  return short.length >= 4 && short !== name.trim() ? short : '';
+};
+
 /** The record entities of a node: a group node holds its ids joined by ";". */
 const entitiesOf = (node: Row): string[] =>
   (node['record_entity_id'] ?? '')
@@ -250,8 +300,29 @@ const entitiesOf = (node: Row): string[] =>
 export const holds = (text: string, words: string): boolean => {
   if (findExcerpt(text, words) !== null) return true;
   const body = words.trim().replace(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
-  return body !== '' && new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, 'iu').test(text);
+  if (body !== '' && new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, 'iu').test(text))
+    return true;
+  // "CJSC Alfa Bank Belarus" is "Alfa-Bank (Belarus)", and "TSK VEKTOR, OOO" is "TSK Vektor".
+  // A label can end with a place in brackets: "Capital Bank of Central Asia (Kyrgyzstan)".
+  const plain = ` ${plainName(text)} `;
+  // The brackets can also hold the name in another script: "STC (Специальный технологический центр)".
+  const inBrackets = /\(([^)]*)\)\s*$/u.exec(words)?.[1] ?? '';
+  return [words, words.replace(/\s*\([^)]*\)\s*$/u, ''), inBrackets].some((one) => {
+    const name = plainName(one);
+    return name.length >= 4 && plain.includes(` ${name} `);
+  });
 };
+
+const LEGAL_FORMS = new Set(
+  'llc jsc pjsc ojsc cjsc ooo oao pao zao ao ltd limited inc co corp plc the'.split(' '),
+);
+/** A name in lower case, with no punctuation and no legal form. */
+export const plainName = (text: string): string =>
+  text
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((word) => word !== '' && !LEGAL_FORMS.has(word))
+    .join(' ');
 
 const safeValues = (value: string): string[] => {
   try {
