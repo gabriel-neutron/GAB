@@ -81,18 +81,29 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
   /** One citation states the claim: the value, or both ends (a link to an act: the subject, as
    * the cited document is the act or the list). */
   const states = (claim: Claim, row: Row): boolean => {
-    // The excerpts of one claim on one document read together: one names the vessel by its IMO
-    // number, the next names its manager.
-    const text = claim.citations
-      .filter((one) => one['document_id'] === row['document_id'])
-      .map(excerpt)
-      .join('\n');
+    const text = excerpt(row);
     if (claim.kind === 'attribute') {
       const values = safeValues(claim.value);
       return values.length > 0 && values.every((one) => holds(text, one));
     }
-    if (!names_(text, claim.subject)) return false;
-    return ACT_LINKS.has(claim.relationType) || names_(text, claim.object);
+    if (ACT_LINKS.has(claim.relationType)) return names_(text, claim.subject);
+    if (names_(text, claim.subject) && names_(text, claim.object)) return true;
+    // A register page names a vessel by its IMO number in one excerpt and its manager in the next:
+    // the excerpts of the claim on one page read together only when one of them gives an
+    // identifier of one end.
+    const page = claim.citations.filter((one) => one['document_id'] === row['document_id']);
+    const byIdentifier = (entity: string) =>
+      page.some((one) =>
+        [...(ids.get(entity)?.values() ?? [])]
+          .flat()
+          .some((id) => holdsIdentifier(excerpt(one), id)),
+      );
+    const all = page.map(excerpt).join('\n');
+    return (
+      (byIdentifier(claim.subject) || byIdentifier(claim.object)) &&
+      names_(all, claim.subject) &&
+      names_(all, claim.object)
+    );
   };
   const checks: Check[] = [];
   const add = (
@@ -234,10 +245,13 @@ const entitiesOf = (node: Row): string[] =>
     .map((one) => one.trim())
     .filter((one) => one !== '');
 
-/** The text holds the words, with no regard to case: a list writes "SOVCOMFLOT". */
-const holds = (text: string, words: string): boolean =>
-  findExcerpt(text, words) !== null ||
-  findExcerpt(text.toLowerCase(), words.toLowerCase()) !== null;
+/** The text holds the words. A list writes "SOVCOMFLOT", so the case does not count, but then the
+ * words must start and end at a word edge: "RU" is not in "Russia". */
+export const holds = (text: string, words: string): boolean => {
+  if (findExcerpt(text, words) !== null) return true;
+  const body = words.trim().replace(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
+  return body !== '' && new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, 'iu').test(text);
+};
 
 const safeValues = (value: string): string[] => {
   try {

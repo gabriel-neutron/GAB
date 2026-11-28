@@ -61,8 +61,8 @@ const TARGET = 'RU';
 const FROM = '2024-01-01';
 const TO = '2026-12-31';
 
-/** The attributes that give the country of an entity. An address or a name does not count. */
-// A vessel holds its current flag in `flag` and its former flags in `flag_history` (#1452).
+/** The attributes that give the country of an entity. An address or a name does not count. A
+ * vessel holds its current flag in `flag` and its former flags in `flag_history`. */
 const COUNTRY_ATTRIBUTES = new Set([
   'registration_jurisdiction',
   'country',
