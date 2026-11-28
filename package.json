@@ -48,6 +48,7 @@
     "worker": "node --env-file=infra/.env packages/worker/src/main.ts",
     "speed:budget": "node tools/speed-budget.ts",
     "critical:replay": "node tools/critical-nodes-replay.ts",
+    "report:excerpts": "node tools/report-excerpt-check.ts",
     "node:audit": "node --env-file-if-exists=infra/.env tools/node-audit.ts",
     "record-tunnel:open": "node --env-file=infra/.env tools/record-tunnel.ts open",
     "record-tunnel:close": "node --env-file=infra/.env tools/record-tunnel.ts close"

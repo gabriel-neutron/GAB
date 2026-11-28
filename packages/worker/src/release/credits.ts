@@ -61,7 +61,7 @@ const PROVIDER_CREDITS: ReadonlyMap<string, readonly string[]> = new Map([
   ['osm', []],
   ['own', []],
   [
-    // A document with no provider leaves only at level A, by an address rule of the seed.
+    // A document with no provider leaves at each level (ADR 0039).
     NO_PROVIDER,
     [
       '## Pages of public bodies',
@@ -119,6 +119,44 @@ const PROVIDER_CREDITS: ReadonlyMap<string, readonly string[]> = new Map([
       'https://creativecommons.org/licenses/by-nc/4.0/. GAB changed the data: it read the facts and the',
       'citations from it. The facts and citations about Global Fishing Watch are for non-commercial',
       'use only.',
+    ],
+  ],
+  [
+    'eurostat',
+    [
+      '## Eurostat',
+      '',
+      'Some figures cite Eurostat, https://ec.europa.eu/eurostat, reused under Commission Decision',
+      '2011/833/EU, with the source named. The European Union does not endorse GAB or this release.',
+    ],
+  ],
+  [
+    'opencorporates',
+    [
+      '## OpenCorporates',
+      '',
+      'Some facts about companies cite OpenCorporates, https://opencorporates.com, under the Open',
+      'Database License, https://opendatacommons.org/licenses/odbl/. The release holds derived facts',
+      'and citations.',
+    ],
+  ],
+  [
+    'opensanctions',
+    [
+      '## OpenSanctions',
+      '',
+      'Some facts cite OpenSanctions, https://www.opensanctions.org, under the Creative Commons',
+      'Attribution-NonCommercial 4.0 International licence,',
+      'https://creativecommons.org/licenses/by-nc/4.0/. These facts are for non-commercial use only.',
+    ],
+  ],
+  [
+    'world_bank',
+    [
+      '## World Bank',
+      '',
+      'Some figures cite the World Bank, https://www.worldbank.org, under the Creative Commons',
+      'Attribution 4.0 International licence, https://creativecommons.org/licenses/by/4.0/.',
     ],
   ],
   [

@@ -9079,9 +9079,9 @@ END $$;
 -- PU1: no rejected act, no value of a person with no public source, no person with no public
 -- source. The functions then add the rules of a release:
 --
---   - a row stays only when one of its sources is a public document at level A
---     (public.export_document), and a row names only such documents (a bought file, an internal
---     document and a document below level A are never named);
+--   - a row stays only when one of its sources is a public document that is not restricted
+--     (public.export_document, ADR 0039), and a row names only such documents (a bought file, an
+--     internal document and a restricted document are never named);
 --   - a person stays only when the record holds a relation "designated by" from the person to an
 --     element that is not a person, with a public source;
 --   - a relation stays only when both of its ends are entities of the release.
@@ -9321,7 +9321,7 @@ $$;
 -- licence filter as the public read. The function reads api.observation as its owner, and that view
 -- shows the owner only the figures with an open licence, so a figure with a restricted licence is
 -- not in a release. The view also hides a subject that the public read does not show.
--- A figure whose document is below level A is not in a release either.
+-- A figure whose document is restricted is not in a release either.
 CREATE FUNCTION release_observations()
 RETURNS TABLE (id uuid, measure text, value numeric, unit text, period text, method text,
                publisher text, reporter text, partner text, product text, subject_id uuid,

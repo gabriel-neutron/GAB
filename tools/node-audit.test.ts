@@ -259,15 +259,15 @@ describe('the checks of the stored document', () => {
     expect(results.map((r) => r.reason)).toEqual(Array(4).fill('needs_record'));
   });
 
-  it('passes a document that exists, has its hash, holds the excerpt at its page and has level A', async () => {
+  it('passes a document that exists, has its hash, holds the excerpt at its page and has a level', async () => {
     const results = await recordChecks(one('v1/flag'), reader());
     expect(results.map((r) => r.verdict)).toEqual(['pass', 'pass', 'pass', 'pass']);
   });
 
-  it('fails a changed file, an excerpt not at its page, a low level and an absent document', async () => {
+  it('fails a changed file, an excerpt not at its page, an unrated document and an absent document', async () => {
     const results = await recordChecks(
       one('v1/flag'),
-      reader({ sha: 'other', level: 'B', text: 'x' }),
+      reader({ sha: 'other', level: 'not_verified', text: 'x' }),
     );
     expect(results.map((r) => r.verdict)).toEqual(['pass', 'fail', 'fail', 'fail']);
     const absent = await recordChecks(with_('v1/flag', { document_id: 'doc_z' }), reader());
@@ -293,7 +293,7 @@ describe('the checks of the stored document', () => {
       'pass each cited document is in the record',
       'cannot_check needs_store',
       'pass an excerpt is in the stored text at its page',
-      'pass a cited document has level A',
+      'pass a cited document has a level',
     ]);
   });
 });

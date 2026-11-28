@@ -319,13 +319,14 @@ sets the rules:
   only, on one port, and the tunnel goes to the database of the PC. The read API and the raw store
   do not go through it.
 - **One role, two views.** A VPS session logs in as a role that reads only the documents that a
-  release can name (public, level A, not restricted), and the text of their pages. It reads no
+  release can name (public and not restricted, ADR 0039), and the text of their pages. It reads no
   table of the record, calls no function, and writes nothing. A perimeter test holds each of these.
 - **One secret, for one tunnel.** Each open gives the role a new password and an end time
   (`GAB_TUNNEL_HOURS`, 8 hours by default). The close takes the login away. The password is in
   `~/gab-services/record-tunnel.env` on the VPS, mode 600, and never in the checkout.
 - **What the VPS cannot read:** a restricted document (a register extract, a court act, a bank
-  statement, which name natural persons), a document below level A, a document that is not public,
+  statement, which name natural persons), a document of a provider whose licence refuses a
+  redistribution, a document that is not public,
   the stored file of any document, the acts, the proposals and the jobs. The role sees only that the
   id of such a document exists, so the audit can tell it from an absent document.
 - **The root login of the VPS is shared with another project.** Mode 600 does not stop root. While
