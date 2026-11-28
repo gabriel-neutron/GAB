@@ -252,7 +252,7 @@ describe('the faults of the MCP server', () => {
   it('serves the corrections page with the policy, the version log and the rights', async () => {
     const page = await (await get('/corrections.md')).text();
     expect(page).toContain('## What happens');
-    expect(page).toContain('- Version 1.0, 29 November 2026:');
+    expect(page).toContain('- Version 1.0, 30 November 2026:');
     expect(page).toContain('Figure 8 is not under CC BY 4.0');
     expect(page).not.toContain('a@example.org');
     expect(page).not.toMatch(/right of reply/iu);

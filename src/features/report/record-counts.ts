@@ -37,7 +37,9 @@ export function recordCounts(source: Source): RecordCounts {
   const { body } = readSource(source);
   const method = (body.get('method-chronology') ?? []).join(' ');
   const annex = (body.get('annex-method') ?? []).join(' ');
-  const day = /On (\d+) (\w+) (\d{4}), the database holds/.exec(annex);
+  const day = /On (\d+) (\w+) (\d{4}), (?:the date of the snapshot, )?the database holds/.exec(
+    annex,
+  );
   const month = MONTHS.indexOf(day?.[2] ?? '');
   if (day === null || month < 0) throw new Error('The final text gives no date of the counts.');
   return {
