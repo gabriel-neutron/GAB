@@ -149,6 +149,14 @@ export const countryCodes = (value: string): string[] =>
     return code === undefined ? [] : [code];
   });
 
+/** The lower-case names that countryCodes reads as this ISO code. */
+export const countryNames = (code: string): string[] => [
+  ...[...NAMES].filter(([, one]) => one === code).map(([name]) => name),
+  ...Object.entries(COUNTRY_ALIASES)
+    .filter(([, one]) => one === code)
+    .map(([name]) => name),
+];
+
 type Row = Readonly<Record<string, string>>;
 
 /** The rows of a release CSV file. The comment lines of its head are not rows. */

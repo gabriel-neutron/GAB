@@ -37,4 +37,7 @@ corrections of errors stay.
   a document back.
 - The read of the node audit through the tunnel follows the same view, so record mode can check
   each document that a release cites.
+- The `document_level` check of the node audit passes a fact whose cited documents are all
+  `not_verified` with the reason `unrated`, and the summary counts these facts. It fails only when
+  the record gives no known level for each cited document (`no_level_in_record`).
 - This replaces the strict export of the verdict for #1278.
