@@ -267,6 +267,20 @@ describe('the checks of a fact', () => {
     const kupol = '46431,"JOINT STOCK COMPANY IZHEVSK ELECTROMECHANICAL PLANT KUPOL"';
     expect(check('registration_jurisdiction', 'RU', kupol).verdict).toBe('fail');
     expect(check('registration_jurisdiction', 'RU', 'flag of Belarus').verdict).toBe('fail');
+    // A country name that is a place inside another name, or a word of another sense, is no value.
+    expect(check('registration_jurisdiction', 'GN', 'Registered in Papua New Guinea').verdict).toBe(
+      'fail',
+    );
+    expect(check('registration_jurisdiction', 'JE', 'an office in New Jersey').verdict).toBe(
+      'fail',
+    );
+    expect(
+      check('registration_jurisdiction', 'RU', 'a company owned by a Russian businessman').verdict,
+    ).toBe('fail');
+    expect(check('registration_jurisdiction', 'RU', '46431,ROSNEFT,Russia,Moscow').verdict).toBe(
+      'pass',
+    );
+    expect(check('flag', 'PA', 'Flag: Panama').verdict).toBe('pass');
   });
 
   // A3, real cases: VTB Bank in the OFAC SDN.CSV, Transneft in Russian, General License No. 8L.
@@ -439,6 +453,27 @@ describe('the checks of the stored document', () => {
       reason: 'unrated',
     });
     expect((await recordChecks(one('v1/flag'), reader({ level: 'X' })))[3]).toMatchObject({
+      verdict: 'fail',
+      reason: 'no_level_in_record',
+    });
+    // An unknown level beside an unrated document is still a fault.
+    const mixed: RecordReader = {
+      document: (id) =>
+        Promise.resolve({
+          sha256: sha256Of(bytes),
+          level: id === 'doc_a' ? 'not_verified' : '',
+          storedSha256: sha256Of(bytes),
+        }),
+      page: () => Promise.resolve('Text: flag of Gabon. End.'),
+    };
+    const two: Claim = {
+      ...one('v1/flag'),
+      citations: [
+        ...one('v1/flag').citations,
+        { ...one('v1/flag').citations[0], document_id: 'doc_b' },
+      ],
+    };
+    expect((await recordChecks(two, mixed))[3]).toMatchObject({
       verdict: 'fail',
       reason: 'no_level_in_record',
     });

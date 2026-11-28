@@ -328,8 +328,21 @@ const holdsValue = (
     const found = holdsDay(text, value);
     return found === 'ambiguous' ? 'ambiguous_date' : found;
   }
-  if (/^[A-Z]{2}$/u.test(value))
-    return countryNames(value).some((name) => holdsName(text, name)) ? 'yes' : 'no';
+  // A country code holds only on a field that is the country name, alone or after its label:
+  // "Atlanta, Georgia" or "owned by a Russian businessman" states no country of the entity.
+  if (/^[A-Z]{2}$/u.test(value)) {
+    const fields = text.split(/[,;|\t\n]+/u).map((one) =>
+      one
+        .replace(/^["'\s]+|["'\s.]+$/gu, '')
+        .replace(/^(?:country|flag|nationality|jurisdiction|place of registration)\s*:\s*/iu, '')
+        .toLowerCase(),
+    );
+    // "Russian Federation" is the full name of Russia; an adjective alone is no country.
+    const names = countryNames(value).flatMap((name) => [name, `${name} federation`]);
+    return names.some((name) => fields.includes(name.toLowerCase()) && name !== 'russian')
+      ? 'yes'
+      : 'no';
+  }
   if (asNumber) {
     const found = holdsNumber(text, Number(value), attribute);
     return found === 'scale'
@@ -651,7 +664,9 @@ export const recordChecks = async (
   // The level is a mark, not a filter (ADR 0039): a document that the signed list does not rate
   // passes as 'unrated'. Only a level that the record does not give is a fault.
   const rated = read.some(([, one]) => RATED.has(one.level));
-  const unrated = read.some(([, one]) => one.level === 'not_verified');
+  // A level that the record does not give is a fault, also beside a rated or unrated document.
+  const unknown = read.some(([, one]) => !RATED.has(one.level) && one.level !== 'not_verified');
+  const unrated = !unknown && read.length > 0;
   return [
     missing.length === 0
       ? result('document_exists', 'pass', 'each cited document is in the record')
@@ -668,7 +683,7 @@ export const recordChecks = async (
     atPage
       ? result('excerpt_at_page', 'pass', 'an excerpt is in the stored text at its page')
       : failOrHidden('excerpt_at_page', 'excerpt_not_at_page'),
-    rated
+    rated && !unknown
       ? result('document_level', 'pass', 'a cited document has a level')
       : unrated
         ? result('document_level', 'pass', 'unrated')
