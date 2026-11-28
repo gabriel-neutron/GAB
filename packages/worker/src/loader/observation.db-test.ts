@@ -534,6 +534,18 @@ test('a release does not give a subject that the public read hides', async () =>
         ),
       ).toStrictEqual([{ subject_id: null }]);
     }
+    // A provider whose licence refuses a redistribution holds its figure back at each level.
+    await held.ask(
+      "UPDATE public.document_provider SET licence = 'restricted' WHERE id = 'eurostat'",
+    );
+    expect(
+      await held.asRole('gabriel_app', () =>
+        held.ask('SELECT subject_id FROM public.release_observations()'),
+      ),
+    ).toStrictEqual([]);
+    await held.ask(
+      "UPDATE public.document_provider SET licence = 'eu-reuse' WHERE id = 'eurostat'",
+    );
     // A restricted document never leaves, so neither does its figure.
     await held.ask(
       'UPDATE public.documents SET restricted = true WHERE id IN (SELECT document_id FROM public.observation)',
