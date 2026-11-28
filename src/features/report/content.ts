@@ -217,7 +217,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'The report looks at the entities that this money and these goods pass through: infrastructure, companies, ships and payment channels. Each entity has one of three functions. The report calls them layers:',
+        text: 'The report looks at the entities that this money and these goods pass through: infrastructure, companies, ships and payment channels. Each entity has one of three functions. The report calls them layers (figure 2):',
       },
       {
         kind: 'li',
@@ -342,14 +342,14 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025. Data: Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026); CREA (2026). Authors' calculations[^21].",
+        text: "Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025. Data: Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026). Authors' calculations[^21]. Mirror data, reported by the buyer country. Coalition: EU, United States, United Kingdom, Japan, South Korea, Switzerland, Norway. Crude: EU = the 27 member states; customs data. Crude of Turkey: CREA (2026), an estimate.",
         figure: {
           number: 3,
           title: 'Russian exports by buyer and crude bought from Russia',
           unit: 'billion US dollars; million tonnes',
           period: '2020-2025',
           sources:
-            "Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026); CREA (2026). Authors' calculations[^21].",
+            "Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026). Authors' calculations[^21]. Mirror data, reported by the buyer country. Coalition: EU, United States, United Kingdom, Japan, South Korea, Switzerland, Norway. Crude: EU = the 27 member states; customs data. Crude of Turkey: CREA (2026), an estimate.",
         },
       },
       {
@@ -362,14 +362,14 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: 'Figure 4: Brent, Urals and the EU price cap, 2022-2026. Data: Federal Tax Service of Russia (2023-2026); Ministry of Finance of Russia (2023); Ministry of Economic Development of Russia (2026); World Bank (2026); EU regulations (2022-2026)[^25].',
+        text: 'Figure 4: Brent, Urals and the EU price cap, 2022-2026. Data: Federal Tax Service of Russia (2024-2026); Ministry of Finance of Russia (2023); Ministry of Economic Development of Russia (2026); World Bank (2026); EU regulations (2022-2026)[^25].',
         figure: {
           number: 4,
           title: 'Brent, Urals and the EU price cap',
           unit: 'dollars per barrel',
           period: '2022-2026',
           sources:
-            'Federal Tax Service of Russia (2023-2026); Ministry of Finance of Russia (2023); Ministry of Economic Development of Russia (2026); World Bank (2026); EU regulations (2022-2026)[^25].',
+            'Federal Tax Service of Russia (2024-2026); Ministry of Finance of Russia (2023); Ministry of Economic Development of Russia (2026); World Bank (2026); EU regulations (2022-2026)[^25].',
         },
       },
       {
@@ -394,14 +394,14 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 5: Oil, gas and defence in the federal budget, 2014-2026. Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Authors' calculations[^37].",
+        text: "Figure 5: Oil, gas and defence in the federal budget, 2014-2026. Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); Cooper (2023; 2025); World Bank (2026). Authors' calculations[^37]. Constant 2021 prices (GDP deflator). Hollow points: January-September (2026 provisional), estimates or planned budget.",
         figure: {
           number: 5,
           title: 'Oil, gas and defence in the federal budget',
           unit: '%; trillion 2021 roubles',
           period: '2014-2026',
           sources:
-            "Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Authors' calculations[^37].",
+            "Ministry of Finance of Russia (2026); Korsunskaya (2024); Cooper (2023; 2025); World Bank (2026). Authors' calculations[^37]. Constant 2021 prices (GDP deflator). Hollow points: January-September (2026 provisional), estimates or planned budget.",
         },
       },
       {
@@ -460,7 +460,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '25',
-        text: '@fts-mineral-tax; @mined-urals; @wb-pink-sheet; @eu-2022-2367; @eu-2022-2368; @eu-2025-1494; @eu-2026-124',
+        text: '@fts-mineral-tax; @minfin-urals; @mined-urals; @wb-pink-sheet; @eu-2022-2367; @eu-2022-2368; @eu-2025-1494; @eu-2026-124',
       },
       {
         id: '26',
@@ -508,7 +508,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '37',
-        text: "authors' calculations based on @minfin-annual, lines 1, 1.1 and 2.2; @minfin-2026-09; @korsunskaya-2024; @wb-deflator",
+        text: "authors' calculations based on @minfin-annual, lines 1, 1.1 and 2.2; @minfin-2026-09; @korsunskaya-2024; @sipri-2023, p. 17; @sipri-2025, p. 9, Table 6; @wb-deflator",
       },
       {
         id: '38',
@@ -548,13 +548,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: 'Figure 6: Traffic at Russian oil ports, 2014-2026. Data: ASOP (2022; 2026); PortNews (2018; 2019; 2021); NMTP (2017; 2020); Dodonov et al. (2026)[^44].',
+        text: 'Figure 6: Traffic at Russian oil ports, 2014-2025 and January-April 2026. Data: ASOP (2022-2026); PortNews (2018; 2019; 2021); NMTP (2017; 2020)[^44]. Novorossiysk includes the CPC terminal.',
         figure: {
           number: 6,
           title: 'Traffic at Russian oil ports',
-          period: '2014-2026',
+          period: '2014-2025 and January-April 2026',
           sources:
-            'ASOP (2022; 2026); PortNews (2018; 2019; 2021); NMTP (2017; 2020); Dodonov et al. (2026)[^44].',
+            'ASOP (2022-2026); PortNews (2018; 2019; 2021); NMTP (2017; 2020)[^44]. Novorossiysk includes the CPC terminal.',
         },
       },
       {
@@ -571,12 +571,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: 'Figure 7: Russian oil exported by sea, January 2026. Data: Dodonov et al. (2026); Raghunandan et al. (2026), based on Kpler[^48].',
+        text: 'Figure 7: Russian oil exported by sea, January 2026. Data: Dodonov et al. (2026). “Other countries” is a balance calculated by the authors. Shares: Raghunandan et al. (2026), based on Kpler[^48].',
         figure: {
           number: 7,
           title: 'Russian oil exported by sea',
           period: 'January 2026',
-          sources: 'Dodonov et al. (2026); Raghunandan et al. (2026), based on Kpler[^48].',
+          sources:
+            'Dodonov et al. (2026). “Other countries” is a balance calculated by the authors. Shares: Raghunandan et al. (2026), based on Kpler[^48].',
         },
       },
       {
@@ -585,13 +586,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 8: Port calls of designated tankers after their designation. Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations. Powered by Global Fishing Watch[^50].",
+        text: "Figure 8: Port calls of designated tankers after their designation. Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations, from a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. Powered by Global Fishing Watch[^50].",
         figure: {
           number: 8,
           title: 'Port calls of designated tankers after their designation',
           unit: 'ships',
           sources:
-            "Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations. Powered by Global Fishing Watch[^50].",
+            "Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations, from a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. Powered by Global Fishing Watch[^50].",
         },
       },
       {
@@ -628,7 +629,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '44',
-        text: '@asop, p. 1; @portnews; @nmtp-2017, pp. 7–8; @nmtp-2020, p. 1; @kse-rot-feb26, p. 3',
+        text: '@asop, p. 1; @portnews; @nmtp-2017, pp. 7–8; @nmtp-2020, p. 1',
       },
       {
         id: '45',
@@ -648,11 +649,11 @@ export const parts: ReportPart[] = [
       },
       {
         id: '49',
-        text: "authors' calculations based on @ofac-sdn; @eu-833-2014 | Rule: the first dated designation of each regime for each tanker of the fleet data. Of the 198 tankers that both the EU and OFAC designate, OFAC is first for 168 (84.8%) and the EU for 30, with no designation on the same day. For 394 of these 396 first designations, one stored act, notice or press release that the fleet data cite gives both the IMO number and the date. For the other 2, the press release gives the date and the vessel name, and the stored OFAC list gives the IMO number for that name (53 documents).",
+        text: "authors' calculations based on @ofac-sdn; @eu-833-2014 | Rule: the first dated designation of each regime for each tanker of the fleet data. Of the 198 tankers that both the EU and OFAC designate, OFAC is first for 168 (84.8%) and the EU for 30, with no designation on the same day. For 394 of these 396 first designations, one stored act, notice or press release that the fleet data cite gives both the IMO number and the date. For the other 2, the press release gives the date and the vessel name, and the stored OFAC list gives the IMO number for that name (53 documents). Data: a record scan of 30 October 2026, LNG tankers included.",
       },
       {
         id: '130',
-        text: "authors' calculations based on @ofac-sdn; @uk-list; @eu-833-2014-cons-2026 | Rule: for each tanker that at least two of the three regimes designate, the days from the first dated designation by one regime to the first dated designation by a second regime.",
+        text: "authors' calculations based on @ofac-sdn; @uk-list; @eu-833-2014-cons-2026 | Rule: for each tanker that at least two of the three regimes designate, the days from the first dated designation by one regime to the first dated designation by a second regime. Data: a record scan of 30 October 2026, LNG tankers included.",
       },
       {
         id: '50',
@@ -664,7 +665,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '52',
-        text: "authors' calculations based on @ofac-sdn; @uk-list; @eu-833-2014-cons-2026",
+        text: "authors' calculations based on @ofac-sdn; @uk-list; @eu-833-2014-cons-2026 | Data: a record scan of 30 October 2026, LNG tankers included.",
       },
     ],
   },
@@ -688,13 +689,14 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: 'Figure 10: Settlement currency of Russian exports and imports, 2019-2025. Data: Central Bank of Russia (2026)[^57].',
+        text: 'Figure 10: Settlement currency of Russian exports and imports, 2019-2025. Data: Central Bank of Russia (2026)[^57]. Currencies of “unfriendly” countries: “unfriendly countries” is the term of the Russian government (list 430-r); the series adds up the currencies of these countries. Shares of all settlements, in %.',
         figure: {
           number: 10,
           title: 'Settlement currency of Russian exports and imports',
           unit: 'percentage of total',
           period: '2019-2025',
-          sources: 'Central Bank of Russia (2026)[^57].',
+          sources:
+            'Central Bank of Russia (2026)[^57]. Currencies of “unfriendly” countries: “unfriendly countries” is the term of the Russian government (list 430-r); the series adds up the currencies of these countries. Shares of all settlements, in %.',
         },
       },
       {
@@ -885,7 +887,7 @@ export const parts: ReportPart[] = [
         figure: {
           number: 11,
           title: 'Exports of CHP goods to Russia',
-          unit: 'million current US dollars',
+          unit: 'million USD',
           period: '2021-2025',
           sources: "UN Comtrade (2026); Risinger et al. (2026). Authors' calculations[^85].",
         },
@@ -1025,12 +1027,12 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 12: Who owns oil, gas and the fleet. Data: OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Authors' calculations[^101].",
+        text: "Figure 12: Who owns oil, gas and the fleet. Data: OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Authors' calculations[^101]. Shares: the documents of Rosneft, Gazprom, Gazprombank and TASS above, not the data release.",
         figure: {
           number: 12,
           title: 'Who owns oil, gas and the fleet',
           sources:
-            "OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Authors' calculations[^101].",
+            "OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Authors' calculations[^101]. Shares: the documents of Rosneft, Gazprom, Gazprombank and TASS above, not the data release.",
         },
       },
       {
@@ -1377,7 +1379,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'The count of entities under watch is 637. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-11-30. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. An entity that the release does not hold is not counted. A date that the release gives as a claim of a relation is a date of that relation. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 572 of the 637 entities under watch, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of each entity under watch from its member entities, because the release gives no layer: Pay 413, Finance 7, Fight 217. The count changes with the rule: 1,323 entities if Russia counts as a third country, 574 with no country of a counterparty. An earlier count of 493 (450 entities of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. In the data release, a port call carries no date (the dated calls of figure 8 come from the Global Fishing Watch file), so most entities under watch are active only by a dated designation.',
+        text: 'The count of entities under watch is 637. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-11-30. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. An entity that the release does not hold is not counted. A date that the release gives as a claim of a relation is a date of that relation. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 572 of the 637 entities under watch, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of each entity under watch from its member entities, because the release gives no layer: Pay 413, Finance 7, Fight 217. The count changes with the rule: 1,323 entities if Russia counts as a third country, 574 with no country of a counterparty. An earlier count of 493 (450 entities of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. In the data release, a port call carries no date (the dated calls of figure 8 come from the Global Fishing Watch file), so most entities under watch are active only by a dated designation. Figures 8 and 9 and the tanker counts of sections 2.5 and 2.6 use a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. These counts differ from the counts of the data release, because the scan has an earlier cut date and because the release does not count LNG tankers as tankers.',
       },
       {
         kind: 'h3',

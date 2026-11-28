@@ -82,7 +82,7 @@ To finance a long war, Russia needs two flows: money from exports, and imported 
 
 ### 1.1 The three layers
 
-The report looks at the entities that this money and these goods pass through: infrastructure, companies, ships and payment channels. Each entity has one of three functions. The report calls them layers:
+The report looks at the entities that this money and these goods pass through: infrastructure, companies, ships and payment channels. Each entity has one of three functions. The report calls them layers (figure 2):
 
 - –**Pay:** Earn the foreign currency that pays for the war;
 
@@ -135,7 +135,7 @@ In 2021, Gazprom sold 148.8 bcm (billion cubic metres) of pipeline gas to Europe
 
 FIGURE: Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025
 
-*Note.* Data: Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026); CREA (2026). Authors' calculations[^21].
+*Note.* Data: Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026). Authors' calculations[^21]. Mirror data, reported by the buyer country. Coalition: EU, United States, United Kingdom, Japan, South Korea, Switzerland, Norway. Crude: EU = the 27 member states; customs data. Crude of Turkey: CREA (2026), an estimate.
 
 [^12]: authors' calculations based on @wb-oil-rents; @wb-gas-rents | Oil rents (9.67%) plus natural gas rents (5.86%) in 2021.
 
@@ -163,7 +163,7 @@ The report compares Urals, the main Russian export crude, with Brent, the North 
 
 FIGURE: Figure 4: Brent, Urals and the EU price cap, 2022-2026
 
-*Note.* Data: Federal Tax Service of Russia (2023-2026); Ministry of Finance of Russia (2023); Ministry of Economic Development of Russia (2026); World Bank (2026); EU regulations (2022-2026)[^25].
+*Note.* Data: Federal Tax Service of Russia (2024-2026); Ministry of Finance of Russia (2023); Ministry of Economic Development of Russia (2026); World Bank (2026); EU regulations (2022-2026)[^25].
 
 Above the cap, Urals travels mostly on ships and with insurers outside the coalition. The cap does not bind them (section 2.5)[^26]. Sanctions still push its price down, well beyond the quality gap[^27]. From August 2023 to October 2025, Urals was worth $10 to $16 less than Brent in each month. Since November 2025, after OFAC designated Rosneft and Lukoil[^28] and several Indian refiners stopped buying[^29], it has been worth $19 to $27 less[^30]. The report sees a probable effect of this designation, but the series shows only a coincidence of dates.
 
@@ -171,7 +171,7 @@ Above the cap, Urals travels mostly on ships and with insurers outside the coali
 
 [^23]: @eu-2022-2367, Art. 3n
 
-[^25]: @fts-mineral-tax; @mined-urals; @wb-pink-sheet; @eu-2022-2367; @eu-2022-2368; @eu-2025-1494; @eu-2026-124
+[^25]: @fts-mineral-tax; @minfin-urals; @mined-urals; @wb-pink-sheet; @eu-2022-2367; @eu-2022-2368; @eu-2025-1494; @eu-2026-124
 
 Refiners in India, China and Turkey keep buying through intermediaries, and the lower price improves their margins[^31]. Since 2022, China has paid less for this crude than for that of its other suppliers[^32].
 
@@ -201,7 +201,7 @@ The share of oil and gas in federal revenue falls (figure 5) for two reasons. Th
 
 FIGURE: Figure 5: Oil, gas and defence in the federal budget, 2014-2026
 
-*Note.* Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Authors' calculations[^37].
+*Note.* Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); Cooper (2023; 2025); World Bank (2026). Authors' calculations[^37]. Constant 2021 prices (GDP deflator). Hollow points: January-September (2026 provisional), estimates or planned budget.
 
 The rest of the economy also pays more: profit tax went from 20 to 25% in 2025, and VAT from 20 to 22% in 2026[^38]. This shift is deliberate: the budget guidelines of the Ministry of Finance for 2026-2028 present the VAT rise as one way to raise non-oil-and-gas revenue to 80% of federal revenue[^39]. The report's hypothesis is that an ever more expensive defence rests more and more on other taxes and on the deficit.
 
@@ -209,7 +209,7 @@ The rest of the economy also pays more: profit tax went from 20 to 25% in 2025, 
 
 [^36]: @minfin-2026-09, p. 1 and table; @ng-damper
 
-[^37]: authors' calculations based on @minfin-annual, lines 1, 1.1 and 2.2; @minfin-2026-09; @korsunskaya-2024; @wb-deflator
+[^37]: authors' calculations based on @minfin-annual, lines 1, 1.1 and 2.2; @minfin-2026-09; @korsunskaya-2024; @sipri-2023, p. 17; @sipri-2025, p. 9, Table 6; @wb-deflator
 
 [^38]: @fts-profit-tax; @fts-vat
 
@@ -217,7 +217,7 @@ The rest of the economy also pays more: profit tax went from 20 to 25% in 2025, 
 
 ### 2.4 The ports
 
-Crude export ports: Primorsk, Ust-Luga, Novorossiysk
+Crude export ports: Primorsk, Ust-Luga, Novorossiysk and Kozmino
 
 *Note.* Base map: Natural Earth.
 
@@ -237,9 +237,9 @@ To leave ports closed to companies of the coalition, the crude needs ships that 
 
 [^43]: @kse-rot-feb26, p. 3
 
-FIGURE: Figure 6: Traffic at Russian oil ports, 2014-2026
+FIGURE: Figure 6: Traffic at Russian oil ports, 2014-2025 and January-April 2026
 
-*Note.* Data: ASOP (2022; 2026); PortNews (2018; 2019; 2021); NMTP (2017; 2020); Dodonov et al. (2026)[^44].
+*Note.* Data: ASOP (2022-2026); PortNews (2018; 2019; 2021); NMTP (2017; 2020)[^44]. Novorossiysk includes the CPC terminal.
 
 Most Russian crude exported by sea travels on these ships (figure 7). Among the designated tankers, the most common flags are those of Panama, Russia, Barbados and Gabon (figure 9). Apart from Russia, these are flags of convenience (of states that register foreign-owned ships with few checks); they also serve ordinary trade, so a flag alone does not signal circumvention. According to the US Treasury, Sovcomflot, the Russian state shipowner, transferred the management of tankers to Stream Ship Management, based in the United Arab Emirates, to circumvent sanctions. In January 2025, the United States designated that company for its activity in the Russian energy sector[^45].
 
@@ -247,13 +247,13 @@ Most Russian crude exported by sea travels on these ships (figure 7). Among the 
 
 Sanctions also target the ships themselves, by their International Maritime Organization (IMO) number, which never changes, while their name, flag, owner and AIS (the radio signal that gives a ship's name and position) identity can change. However, designation does not stop port calls (figure 8)[^46]. Of 711 tankers with a dated designation, 318 called at a port at least once after it, and 22 of them called in the EU or the United Kingdom. In December 2025, more than one designated tanker in five still loads Russian oil[^47].
 
-[^44]: @asop, p. 1; @portnews; @nmtp-2017, pp. 7–8; @nmtp-2020, p. 1; @kse-rot-feb26, p. 3
+[^44]: @asop, p. 1; @portnews; @nmtp-2017, pp. 7–8; @nmtp-2020, p. 1
 
 [^45]: @ust-jy2777, Annex 2
 
 FIGURE: Figure 7: Russian oil exported by sea, January 2026
 
-*Note.* Data: Dodonov et al. (2026); Raghunandan et al. (2026), based on Kpler[^48].
+*Note.* Data: Dodonov et al. (2026). “Other countries” is a balance calculated by the authors. Shares: Raghunandan et al. (2026), based on Kpler[^48].
 
 The three sanctions regimes do not move at the same pace. When the EU and the United States designate the same ship, the United States does so first for 168 of the 198 tankers that both designate, more than eight cases out of ten (figure 9)[^49]. For tankers on two or more of the three lists, the median gap from the first designation to the second is 87 days[^130].
 
@@ -265,13 +265,13 @@ The three sanctions regimes do not move at the same pace. When the EU and the Un
 
 FIGURE: Figure 8: Port calls of designated tankers after their designation
 
-*Note.* Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations. Powered by Global Fishing Watch[^50].
+*Note.* Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations, from a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. Powered by Global Fishing Watch[^50].
 
 A designated ship also often changes hands. On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships that give both a designation date and an owner or manager date show an owner or manager that started after the designation[^51]. The report's hypothesis is that targeting the company that manages the tankers, and the country where it is based, would reach the fleet more surely than targeting each ship.
 
-[^49]: authors' calculations based on @ofac-sdn; @eu-833-2014 | Rule: the first dated designation of each regime for each tanker of the fleet data. Of the 198 tankers that both the EU and OFAC designate, OFAC is first for 168 (84.8%) and the EU for 30, with no designation on the same day. For 394 of these 396 first designations, one stored act, notice or press release that the fleet data cite gives both the IMO number and the date. For the other 2, the press release gives the date and the vessel name, and the stored OFAC list gives the IMO number for that name (53 documents).
+[^49]: authors' calculations based on @ofac-sdn; @eu-833-2014 | Rule: the first dated designation of each regime for each tanker of the fleet data. Of the 198 tankers that both the EU and OFAC designate, OFAC is first for 168 (84.8%) and the EU for 30, with no designation on the same day. For 394 of these 396 first designations, one stored act, notice or press release that the fleet data cite gives both the IMO number and the date. For the other 2, the press release gives the date and the vessel name, and the stored OFAC list gives the IMO number for that name (53 documents). Data: a record scan of 30 October 2026, LNG tankers included.
 
-[^130]: authors' calculations based on @ofac-sdn; @uk-list; @eu-833-2014-cons-2026 | Rule: for each tanker that at least two of the three regimes designate, the days from the first dated designation by one regime to the first dated designation by a second regime.
+[^130]: authors' calculations based on @ofac-sdn; @uk-list; @eu-833-2014-cons-2026 | Rule: for each tanker that at least two of the three regimes designate, the days from the first dated designation by one regime to the first dated designation by a second regime. Data: a record scan of 30 October 2026, LNG tankers included.
 
 [^50]: authors' calculations based on @gfw-port-visits; @ofac-sdn; @uk-list; @eu-833-2014
 
@@ -281,7 +281,7 @@ FIGURE: Figure 9: Tankers designated by the EU, the United Kingdom and OFAC
 
 *Note.* Data: Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations[^52].
 
-[^52]: authors' calculations based on @ofac-sdn; @uk-list; @eu-833-2014-cons-2026
+[^52]: authors' calculations based on @ofac-sdn; @uk-list; @eu-833-2014-cons-2026 | Data: a record scan of 30 October 2026, LNG tankers included.
 
 ## 3 Finance
 
@@ -293,7 +293,7 @@ From 2022, the United States[^53] and the United Kingdom[^54] froze the assets o
 
 FIGURE: Figure 10: Settlement currency of Russian exports and imports, 2019-2025
 
-*Note.* Data: Central Bank of Russia (2026)[^57].
+*Note.* Data: Central Bank of Russia (2026)[^57]. Currencies of “unfriendly” countries: “unfriendly countries” is the term of the Russian government (list 430-r); the series adds up the currencies of these countries. Shares of all settlements, in %.
 
 [^53]: @ust-jy0608, p. 1; @ust-jy0705, p. 1
 
@@ -449,7 +449,7 @@ According to the latest disclosures, the state holds the large companies through
 
 FIGURE: Figure 12: Who owns oil, gas and the fleet
 
-*Note.* Data: OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Authors' calculations[^101].
+*Note.* Data: OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Authors' calculations[^101]. Shares: the documents of Rosneft, Gazprom, Gazprombank and TASS above, not the data release.
 
 ### 5.2 The fleet
 
@@ -601,7 +601,7 @@ The three conditions of the Method section apply in the same way to all entities
 
 Vessels of one management company, or failing that of one owner, form a single entity under watch. One act of designation can meet more than one condition; where no activity is observed, a new designation stands as a sign of activity: it dates an act of enforcement, not an observed flow.
 
-The count of entities under watch is 637. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-11-30. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. An entity that the release does not hold is not counted. A date that the release gives as a claim of a relation is a date of that relation. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 572 of the 637 entities under watch, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of each entity under watch from its member entities, because the release gives no layer: Pay 413, Finance 7, Fight 217. The count changes with the rule: 1,323 entities if Russia counts as a third country, 574 with no country of a counterparty. An earlier count of 493 (450 entities of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. In the data release, a port call carries no date (the dated calls of figure 8 come from the Global Fishing Watch file), so most entities under watch are active only by a dated designation.
+The count of entities under watch is 637. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-11-30. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. An entity that the release does not hold is not counted. A date that the release gives as a claim of a relation is a date of that relation. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 572 of the 637 entities under watch, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of each entity under watch from its member entities, because the release gives no layer: Pay 413, Finance 7, Fight 217. The count changes with the rule: 1,323 entities if Russia counts as a third country, 574 with no country of a counterparty. An earlier count of 493 (450 entities of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. In the data release, a port call carries no date (the dated calls of figure 8 come from the Global Fishing Watch file), so most entities under watch are active only by a dated designation. Figures 8 and 9 and the tanker counts of sections 2.5 and 2.6 use a record scan of 30 October 2026, LNG tankers included, and AIS port calls to 26 October 2026. These counts differ from the counts of the data release, because the scan has an earlier cut date and because the release does not count LNG tankers as tankers.
 
 ### A.4 Checking facts and text
 

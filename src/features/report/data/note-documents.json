@@ -825,6 +825,20 @@
           "retrievedAt": "2026-10-25",
           "url": "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx",
           "match": "manual"
+        },
+        {
+          "id": "doc_d6d9de0ffcce",
+          "type": "other",
+          "retrievedAt": "2026-10-19",
+          "url": "https://minfin.gov.ru/ru/press-center/?id_4=38813-o_srednei_tsene_na_neft_marki_urals",
+          "match": "exact"
+        },
+        {
+          "id": "doc_55a10874edcb",
+          "type": "other",
+          "retrievedAt": "2026-10-19",
+          "url": "https://minfin.gov.ru/ru/press-center?id_4=38643-o_srednei_tsene_na_neft_marki_urals",
+          "match": "exact"
         }
       ]
     },
@@ -1116,6 +1130,20 @@
           "retrievedAt": "2026-10-19",
           "url": "https://minfin.gov.ru/common/upload/library/2026/10/main/Prilozhenie_3_dannye_109-111_%E2%80%94_mes.xlsx",
           "match": "manual"
+        },
+        {
+          "id": "doc_b59d9cab4757",
+          "type": "other",
+          "retrievedAt": "2026-10-30",
+          "url": "https://www.sipri.org/sites/default/files/2023-12/sipriinsights_2312_11_russian_milex_for_2024_0.pdf",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f5cd460ac84d",
+          "type": "other",
+          "retrievedAt": "2026-10-30",
+          "url": "https://www.sipri.org/sites/default/files/2025-04/preparing_for_a_fourth_year_of_war-military_spending_in_russias_budget_for_2025.pdf",
+          "match": "exact"
         }
       ]
     },
@@ -1332,13 +1360,6 @@
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://fs.moex.com/f/13354/nmtp-report-rus-30-04-2020.pdf",
-          "match": "exact"
-        },
-        {
-          "id": "doc_f42628ac12e6",
-          "type": "ngo_publication",
-          "retrievedAt": "2026-10-25",
-          "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
           "match": "exact"
         },
         {
