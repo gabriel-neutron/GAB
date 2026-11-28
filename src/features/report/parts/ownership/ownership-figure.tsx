@@ -511,10 +511,7 @@ export function OwnershipPrintFigure() {
                   {links
                     .filter((link) => link.from === owner.id)
                     .map((link) => (
-                      <div
-                        key={`${link.relation}-${link.to}`}
-                        className="pl-6 -indent-4"
-                      >
+                      <div key={`${link.relation}-${link.to}`} className="pl-6 -indent-4">
                         <Mark link={link} />{' '}
                         <span className="font-mono text-[7.5px] text-label">
                           {link.relation}

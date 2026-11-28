@@ -217,7 +217,7 @@ The rest of the economy also pays more: profit tax went from 20 to 25% in 2025, 
 
 ### 2.4 The ports
 
-Crude export ports: Primorsk, Ust-Luga, Novorossiysk and Kozmino
+Crude export ports: Primorsk, Ust-Luga, Novorossiysk
 
 *Note.* Base map: Natural Earth.
 
