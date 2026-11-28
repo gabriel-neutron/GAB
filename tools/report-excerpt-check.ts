@@ -71,7 +71,7 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
       names.get(one)?.push(node['name'] ?? '', node['short_label'] ?? '');
   const excerpt = (row: Row) => row['excerpt'] ?? '';
   const names_ = (text: string, entity: string) =>
-    (names.get(entity) ?? []).some((one) => one.trim() !== '' && findExcerpt(text, one) !== null) ||
+    (names.get(entity) ?? []).some((one) => one.trim() !== '' && holds(text, one)) ||
     [...(ids.get(entity)?.values() ?? [])].flat().some((one) => holdsIdentifier(text, one));
   const touching = new Map<string, Claim[]>();
   for (const claim of claims)
@@ -81,10 +81,15 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
   /** One citation states the claim: the value, or both ends (a link to an act: the subject, as
    * the cited document is the act or the list). */
   const states = (claim: Claim, row: Row): boolean => {
-    const text = excerpt(row);
+    // The excerpts of one claim on one document read together: one names the vessel by its IMO
+    // number, the next names its manager.
+    const text = claim.citations
+      .filter((one) => one['document_id'] === row['document_id'])
+      .map(excerpt)
+      .join('\n');
     if (claim.kind === 'attribute') {
       const values = safeValues(claim.value);
-      return values.length > 0 && values.every((one) => findExcerpt(text, one) !== null);
+      return values.length > 0 && values.every((one) => holds(text, one));
     }
     if (!names_(text, claim.subject)) return false;
     return ACT_LINKS.has(claim.relationType) || names_(text, claim.object);
@@ -125,13 +130,15 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
       const state = Object.entries(node).find(
         ([key]) => key.startsWith(`cond${n}_`) && key.endsWith('_state'),
       )?.[1];
-      const document = node[`cond${n}_doc`] ?? '';
-      if (state !== 'record' || document === '') continue;
+      // A condition can cite more than one document: "doc_a; doc_b".
+      const documents = (node[`cond${n}_doc`] ?? '').split(/[\s;,]+/u).filter((one) => one !== '');
+      const document = documents.join(';');
+      if (state !== 'record' || documents.length === 0) continue;
       // The sanctions condition rests on a link to an act; the other two on any claim of the node.
       const cited = touchingAll(members).filter(
         (claim) =>
           (n !== '1' || ACT_LINKS.has(claim.relationType)) &&
-          claim.citations.some((row) => row['document_id'] === document),
+          claim.citations.some((row) => documents.includes(row['document_id'] ?? '')),
       );
       if (cited.length === 0)
         add(
@@ -143,7 +150,9 @@ export const checkReport = (files: ReleaseFiles, facts: ReportFacts): Check[] =>
         );
       else {
         const ok = cited.some((claim) =>
-          claim.citations.some((row) => row['document_id'] === document && states(claim, row)),
+          claim.citations.some(
+            (row) => documents.includes(row['document_id'] ?? '') && states(claim, row),
+          ),
         );
         add(
           'condition',
@@ -224,6 +233,11 @@ const entitiesOf = (node: Row): string[] =>
     .split(';')
     .map((one) => one.trim())
     .filter((one) => one !== '');
+
+/** The text holds the words, with no regard to case: a list writes "SOVCOMFLOT". */
+const holds = (text: string, words: string): boolean =>
+  findExcerpt(text, words) !== null ||
+  findExcerpt(text.toLowerCase(), words.toLowerCase()) !== null;
 
 const safeValues = (value: string): string[] => {
   try {
