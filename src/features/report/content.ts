@@ -1099,7 +1099,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '124',
-        text: "authors' calculations based on @ofac-sdn; @uk-list; @eu-833-2014; @gur-fleet | The companies that own or operate at least six designated vessels, and whose owner no source names. Count on the data release data-2026-11-28: 21 companies have an owns or operates relation to at least six vessels with a designation; 5 of them have an owner or a parent company in the release, which leaves 16.",
+        text: "authors' calculations based on @ofac-sdn; @uk-list; @eu-833-2014; @gur-fleet | The companies that own or operate at least six designated vessels, and whose owner no source names. Count on the data release data-2026-11-29: 21 companies have an owns or operates relation to at least six vessels with a designation; 5 of them have an owner or a parent company in the release, which leaves 16.",
       },
       {
         id: '125',
@@ -1236,11 +1236,11 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'A.1 The database' },
       {
         kind: 'p',
-        text: 'The report rests on a database of entities (such as companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 28 November 2026, the database holds 7,162 entities in its public data release (data-2026-11-28). The count of nodes under watch runs on this release. A legal act or an event is no node, so the count tests 6,660 entities.',
+        text: 'The report rests on a database of entities (such as companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 29 November 2026, the database holds 7,162 entities in its public data release (data-2026-11-29). The count of nodes under watch runs on this release. A legal act or an event is no node, so the count tests 6,660 entities.',
       },
       {
         kind: 'p',
-        text: 'These documents come from the official sanctions lists (OFAC, United Kingdom, EU acts), from company registers, from public statistics (UN Comtrade, Eurostat, World Bank, Bank of Russia, Russian Ministry of Finance), from research institutes (KSE, CREA, Bruegel) and from investigative press. Leads came from web and news searches (SearXNG, GDELT) and from the registers; a search result was never cited, and the queries were not logged. The documents of the data release were retrieved between 7 October and 27 November 2026; the last corrections of the record date from 27 November 2026.',
+        text: 'These documents come from the official sanctions lists (OFAC, United Kingdom, EU acts), from company registers, from public statistics (UN Comtrade, Eurostat, World Bank, Bank of Russia, Russian Ministry of Finance), from research institutes (KSE, CREA, Bruegel) and from investigative press. Leads came from web and news searches (SearXNG, GDELT) and from the registers; a search result was never cited, and the queries were not logged. The documents of the data release were retrieved between 7 October and 27 November 2026; the last corrections of the record date from 28 November 2026.',
       },
       {
         kind: 'p',
@@ -1298,7 +1298,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'The count of nodes under watch is 637. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-11-28. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. A node that the release does not hold is not counted. A date that the release gives as a claim of a relation is a date of that relation. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 572 of the 637 nodes, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of a node from its entities, because the release gives no layer: Pay 413, Finance 7, Fight 217. The count changes with the rule: 1,323 nodes if Russia counts as a third country, 574 with no country of a counterparty. An earlier count of 493 (450 nodes of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. Port calls carry no date, so most nodes are active only by a dated designation. The script and its command keep the older name "critical".',
+        text: 'The count of nodes under watch is 637. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-11-29. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. A node that the release does not hold is not counted. A date that the release gives as a claim of a relation is a date of that relation. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 572 of the 637 nodes, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of a node from its entities, because the release gives no layer: Pay 413, Finance 7, Fight 217. The count changes with the rule: 1,323 nodes if Russia counts as a third country, 574 with no country of a counterparty. An earlier count of 493 (450 nodes of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. Port calls carry no date, so most nodes are active only by a dated designation. The script and its command keep the older name "critical".',
       },
       { kind: 'h3', text: 'A.4 Checking facts and text' },
       {
