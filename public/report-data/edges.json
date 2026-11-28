@@ -330,17 +330,6 @@
     "basis": "record relation to a shared entity"
   },
   {
-    "source": "N-P011",
-    "target": "Tikhoretsk-Tuapse 1 Oil Pipeline",
-    "source_layer": "Pay",
-    "target_layer": "shared entity: facility",
-    "relation_type": "crude_flows_to (in)",
-    "via_shared_entity": "Tikhoretsk-Tuapse 1 Oil Pipeline",
-    "state": "promoted fact",
-    "document_ids": "doc_0348640943cf",
-    "basis": "record relation to a shared entity"
-  },
-  {
     "source": "N-P034",
     "target": "Tikhoretsk-Tuapse 2 Oil Pipeline",
     "source_layer": "Pay",
@@ -426,28 +415,6 @@
     "via_shared_entity": "Rostec State Corporation",
     "state": "promoted fact",
     "document_ids": "doc_4e822fd4cf03",
-    "basis": "record relation to a shared entity"
-  },
-  {
-    "source": "N-M003",
-    "target": "System for Transfer of Financial Messages",
-    "source_layer": "Finance",
-    "target_layer": "shared entity: facility",
-    "relation_type": "settles_through",
-    "via_shared_entity": "System for Transfer of Financial Messages",
-    "state": "promoted fact",
-    "document_ids": "doc_f4ae69f3ce3b;doc_49f0239a169d",
-    "basis": "record relation to a shared entity"
-  },
-  {
-    "source": "N-M020",
-    "target": "System for Transfer of Financial Messages",
-    "source_layer": "Finance",
-    "target_layer": "shared entity: facility",
-    "relation_type": "settles_through",
-    "via_shared_entity": "System for Transfer of Financial Messages",
-    "state": "promoted fact",
-    "document_ids": "doc_f4ae69f3ce3b;doc_49f0239a169d",
     "basis": "record relation to a shared entity"
   },
   {
