@@ -99,8 +99,8 @@ const REGIONS = [
   { key: 'UK', x: 425, y: 135 },
   { key: 'EU+UK', x: 295, y: 115 },
   { key: 'EU+OFAC+UK', x: 295, y: 196 },
-  { key: 'EU+OFAC', x: 252, y: 244 },
-  { key: 'OFAC+UK', x: 338, y: 244 },
+  { key: 'EU+OFAC', x: 260, y: 222 },
+  { key: 'OFAC+UK', x: 330, y: 222 },
   { key: 'OFAC', x: 295, y: 282 },
 ];
 

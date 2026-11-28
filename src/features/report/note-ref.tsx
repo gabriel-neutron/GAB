@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Dialog, Popover } from 'radix-ui';
 import { documentMark } from '@gab/release/party-origin';
 import { cn } from '@/shared/lib/utils';
-import { citeText, entryOf, keysOf, shortNoteNumbers, splitNote } from './bibliography';
+import { citeText, entryOf, keysOf, noteText, shortNoteNumbers } from './bibliography';
 import { EntryText } from './entry-text';
 import { useMarginScreen } from './margin-screen';
 import { reportAddress } from './report-context';
@@ -43,10 +43,11 @@ function NoteBody({ partSlug, id }: NoteRefProps) {
   const quote = held?.quote;
   if (note === undefined) return null;
   const keys = keysOf(note.text);
-  const short = splitNote(note.text).note;
+  const short = noteText(note.text);
+  const cite = citeText(note.text);
   return (
     <div className="space-y-3">
-      <p className="text-report-small break-words">({citeText(note.text)})</p>
+      {cite === '' ? null : <p className="text-report-small break-words">({cite})</p>}
       {/* The way to the bibliography comes first: a long note scrolls in its box. */}
       <Link
         to={`/${ui.paths.notes}` as ReportPath}
@@ -125,7 +126,7 @@ export function NoteRef({ partSlug, id, compact = false }: NoteRefProps) {
   if (compact)
     return (
       <Marker
-        name={`${ui.note.label}: ${cite}`}
+        name={`${ui.note.label}: ${cite === '' ? String(number ?? '') : cite}`}
         mark={number === undefined ? ui.note.mark : String(number)}
       >
         {body}
@@ -133,10 +134,10 @@ export function NoteRef({ partSlug, id, compact = false }: NoteRefProps) {
     );
   return (
     <Marker
-      name={`${ui.note.label}: ${cite}`}
+      name={`${ui.note.label}: ${cite === '' ? String(number ?? '') : cite}`}
       inline={
         <>
-          ({cite})
+          {cite === '' ? null : `(${cite})`}
           {number === undefined ? null : (
             <span className="ml-0.5 align-super font-mono text-report-label/none">{number}</span>
           )}

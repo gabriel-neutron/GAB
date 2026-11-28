@@ -141,7 +141,9 @@ describe.each([['en', en]] as const)('the citations of the %s page', (lang, copy
       for (const block of part.blocks.filter((one) => one.kind !== 'figure'))
         for (const [, id] of block.text.matchAll(/\[\^([^\]]+)\]/g)) {
           const note = part.notes.find((one) => one.id === id);
-          expect(html).toContain(`(${markup(citeText(note?.text ?? ''))})`);
+          const cite = citeText(note?.text ?? '');
+          // A note with no reference in the text shows only its number.
+          if (cite !== '') expect(html).toContain(`(${markup(cite)})`);
         }
   });
 
@@ -149,7 +151,7 @@ describe.each([['en', en]] as const)('the citations of the %s page', (lang, copy
     for (const { note } of copy.openingUi.summary.values.filter((one) => one.note !== ''))
       expect(html).toMatch(
         new RegExp(
-          `<p class="[^"]*text-report-(?:display|number)[^"]*">(?:(?!</p>).)*aria-label="${copy.ui.note.label}: ${escaped(markup(citeText(noteText(note))))}"`,
+          `<p class="[^"]*text-report-(?:display|number)[^"]*">(?:(?!</p>).)*aria-label="${copy.ui.note.label}: ${escaped(markup(citeText(noteText(note)))) || String.raw`\d+`}"`,
           's',
         ),
       );

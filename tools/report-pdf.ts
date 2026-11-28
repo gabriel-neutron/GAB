@@ -64,7 +64,9 @@ interface Line {
 interface Bibliography {
   readonly GROUPS: Record<string, string>;
   readonly entryOf: (key: string) => Entry;
-  readonly splitNote: (text: string) => { cite: string; note: string };
+  readonly citeParts: (text: string) => readonly { label: string; key: string }[];
+  readonly noteText: (text: string) => string;
+  readonly locatorsOf: (notes: Line[]) => ReadonlyMap<string, readonly string[]>;
   readonly shortNoteNumbers: (notes: Line[]) => ReadonlyMap<string, number>;
   readonly citingNotes: (notes: Line[]) => ReadonlyMap<string, string[]>;
   readonly groupedEntries: () => readonly (readonly [string, readonly Entry[]])[];
@@ -101,15 +103,19 @@ export async function copies(
   const numbers = bib.shortNoteNumbers(lines);
   const notes: Record<string, PrintedNote> = {};
   for (const { id, text } of lines) {
-    const { cite, note } = bib.splitNote(text);
-    const html = escape(cite).replace(
-      /@([a-z0-9][a-z0-9-]*)/g,
-      (_, key: string) =>
-        `<a href="#ref-${key}" style="${LINK}">${escape(bib.entryOf(key).cite)}</a>`,
-    );
+    // The reference in the text: (author, year) items, each a link to its entry.
+    const html = bib
+      .citeParts(text)
+      .map(({ label, key }) => `<a href="#ref-${key}" style="${LINK}">${escape(label)}</a>`)
+      .join('; ');
     const number = numbers.get(id);
-    notes[id] = { cite: html, short: note, ...(number === undefined ? {} : { number }) };
+    notes[id] = {
+      cite: html,
+      short: bib.noteText(text),
+      ...(number === undefined ? {} : { number }),
+    };
   }
+  const locators = bib.locatorsOf(lines);
   const citing = bib.citingNotes(lines);
   const bibliography = bib
     .groupedEntries()
@@ -127,7 +133,9 @@ export async function copies(
             ? ''
             : ` <span style="${META}">Accessed ${latest.retrievedAt}; stored ${latest.id}${more}.</span>`;
         const detail = entry.detail === undefined ? '' : ` ${escape(entry.detail)}.`;
-        return `<p id="ref-${entry.key}" style="${ENTRY}"><strong style="font-weight: 500">${escape(entry.cite.replace(/\.$/u, ''))}.</strong> ${escape(entry.issuer)} (${escape(entry.date)}). <em>${escape(entry.title)}</em>.${detail} ${escape(entry.url)}${record}</p>`;
+        const at = locators.get(entry.key) ?? [];
+        const cited = at.length === 0 ? '' : ` Cited: ${escape(at.join('; '))}.`;
+        return `<p id="ref-${entry.key}" style="${ENTRY}"><strong style="font-weight: 500">${escape(entry.cite.replace(/\.$/u, ''))}.</strong> ${escape(entry.issuer)} (${escape(entry.date)}). <em>${escape(entry.title)}</em>.${detail}${cited} ${escape(entry.url)}${record}</p>`;
       }),
     ])
     .join('\n');
@@ -159,7 +167,7 @@ export function withReferences(page: string, notes: Copy['notes']): string {
             `<div style="display: grid; grid-template-columns: 28px minmax(0, 1fr); margin: 0 0 3px; font-size: 12px; line-height: 16px; color: #4d4947"><span style="${MONO}; color: #b8470d">${number}</span><span style="overflow-wrap: anywhere">${escape(note.short)}</span></div>`,
           );
         }
-        if (block.includes(FIGURE_NOTE)) return `${call}${stop}`;
+        if (block.includes(FIGURE_NOTE) || note.cite === '') return `${call}${stop}`;
         return ` <span data-cite="${id}">(${note.cite})</span>${call}${stop}`;
       }),
     )

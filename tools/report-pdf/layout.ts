@@ -29,8 +29,8 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
   const LINK = 'color: inherit; text-decoration: none';
   // The size and the leading of the notes, from the size of the design to 7 pt.
   const SIZES = [
-    ['12px', '16px'],
     ['11px', '14.5px'],
+    ['10.5px', '14px'],
     ['10px', '13.5px'],
     ['9.5px', '12.5px'],
   ] as const;
@@ -41,11 +41,11 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
     ['13px', '18.5px'],
     ['12.7px', '18px'],
   ] as const;
-  // The first pages (cover, two pages of summary, contents, list of figures) are fixed: no text comes into them
+  // The first pages (cover, two pages of summary, contents with the list of figures) are fixed: no text comes into them
   // from another page.
-  const FIXED = 5;
-  // A part starts on the page of the part before it when this room (in px) is free on that page.
-  const JOIN = 190;
+  const FIXED = 4;
+  // Each part starts on a new page: no part joins the page of the part before it.
+  const JOIN = Infinity;
 
   const sheets = (): HTMLElement[] => Array.from(document.querySelectorAll<HTMLElement>('.sheet'));
   const sheetAt = (index: number): HTMLElement => {
@@ -261,6 +261,31 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
     }
   };
 
+  // The type of the text pages: a denser body and bibliography keep the report short. The pass sets
+  // it here, so that a change of the words of a template keeps it.
+  for (const sheet of sheets().slice(FIXED)) {
+    const column = columnOf(sheet);
+    if (!column) continue;
+    for (const el of Array.from(
+      bodyOf(column).querySelectorAll<HTMLElement>(':scope > p, :scope > h3'),
+    )) {
+      if (el.style.fontSize === '15px') {
+        el.style.fontSize = '13.5px';
+        el.style.lineHeight = '19px';
+        if (el.style.marginBottom === '12px') el.style.marginBottom = '10px';
+      }
+      if (el.tagName === 'H3' && el.style.marginTop === '32px') el.style.marginTop = '24px';
+      if (el.style.maxWidth === '576px') el.style.maxWidth = '610px';
+    }
+    for (const entry of Array.from(bodyOf(column).querySelectorAll<HTMLElement>('p[id^="ref-"]'))) {
+      // 9.4px is 7 pt, the floor of the print.
+      entry.style.fontSize = '9.4px';
+      entry.style.lineHeight = '10px';
+      entry.style.marginBottom = '1px';
+    }
+    sized(column, SIZES[0]);
+  }
+
   // The edge of a page: no margin above its first block, and none below its last one.
   const style = document.createElement('style');
   style.textContent =
@@ -319,9 +344,10 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
     let deferred: HTMLElement[] = [];
     const put = (m: number, split?: { head: HTMLElement; tail: HTMLElement }): void => {
       body.replaceChildren(...blocks.slice(0, m), ...(split ? [split.head] : []));
+      // The end of a cut paragraph comes first: a figure never stands inside a paragraph.
       nextBody.replaceChildren(
-        ...deferred,
         ...(split ? [split.tail] : []),
+        ...deferred,
         ...blocks.slice(m + (split ? 1 : 0)),
       );
       // A heading at the top of a page, after a float, goes beside the float.
@@ -501,11 +527,23 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
       }
     }
     const host = bodyOf(columnAt(first));
+    // On the first page too, a paragraph with no stop goes on in the next paragraph, before a figure.
+    for (const el of Array.from(host.children)) {
+      if (el.tagName !== 'P') continue;
+      let last = el.previousElementSibling;
+      while (last?.tagName === 'FIGURE') last = last.previousElementSibling;
+      if (last && goesOn(last, el)) {
+        last.append(' ', ...Array.from(el.childNodes));
+        el.remove();
+      }
+    }
     for (let j = first + 1; j < end; j += 1) {
       const source = bodyOf(columnAt(j));
       while (source.firstElementChild) {
         const el = source.firstElementChild;
-        const last = host.lastElementChild;
+        // A figure between the two halves of a paragraph goes after the paragraph.
+        let last = host.lastElementChild;
+        while (last?.tagName === 'FIGURE' && el.tagName === 'P') last = last.previousElementSibling;
         if (last && goesOn(last, el)) {
           last.append(' ', ...Array.from(el.childNodes));
           el.remove();
@@ -638,7 +676,8 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
       const worst = Math.max(holeOf(previous), holeOf(column));
       const origin = moved.nextElementSibling;
       const target = bodyOf(column);
-      const anchor = Array.from(target.children).find((el) => el.tagName !== 'FIGURE');
+      // The text that comes down goes above a figure at the top of the page, which follows it.
+      const anchor = target.firstElementChild;
       const place = (el: Element): void => {
         if (anchor) anchor.before(el);
         else target.append(el);

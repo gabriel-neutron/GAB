@@ -64,7 +64,7 @@ const treasury = (
   detail: `Press release ${number}`,
 });
 
-export const entries: readonly Entry[] = [
+const listed: readonly Entry[] = [
   // Legal acts of the European Union.
   eu(
     'eu-269-2014',
@@ -155,14 +155,6 @@ export const entries: readonly Entry[] = [
     '2023, February 4',
     'cd24922e',
     'European Commission',
-  ),
-  eu(
-    'eu-2025-389',
-    '32025R0389',
-    'Impl. Reg. (EU) 2025/389',
-    'Council Implementing Regulation (EU) 2025/389 of 24 February 2025 implementing Regulation (EU) No 269/2014 concerning restrictive measures in respect of actions undermining or threatening the territorial integrity, sovereignty and independence of Ukraine',
-    '2025, February 24',
-    '47858cb9',
   ),
   eu(
     'eu-2025-395',
@@ -336,18 +328,6 @@ export const entries: readonly Entry[] = [
   ),
   treasury('ust-jl2369', 'jl2369', '2014, April 28', 'Press release jl2369'),
   treasury('ust-sm0312', 'sm0312', '2018', 'Press release sm0312'),
-  treasury(
-    'ust-sm0338',
-    'sm0338',
-    '2018, April 6',
-    'Treasury Designates Russian Oligarchs, Officials, and Entities in Response to Worldwide Malign Activity',
-  ),
-  treasury(
-    'ust-jy0602',
-    'jy0602',
-    '2022, February 22',
-    'U.S. Treasury Imposes Immediate Economic Costs in Response to Actions in the Donetsk and Luhansk Regions',
-  ),
   treasury('ust-jy0608', 'jy0608', '2022', 'Press release jy0608'),
   treasury('ust-jy0705', 'jy0705', '2022', 'Press release jy0705'),
   treasury(
@@ -434,17 +414,6 @@ export const entries: readonly Entry[] = [
     date: '2019, January 23',
     title: 'LCQ2: Implementation of sanctions imposed by United Nations Security Council',
     url: 'https://www.info.gov.hk/gia/general/201901/23/P2019012300436.htm',
-  },
-  {
-    key: 'pca-yukos',
-    group: 'law',
-    cite: 'Permanent Court of Arbitration, 2014',
-    issuer: 'Permanent Court of Arbitration',
-    date: '2014, July 18',
-    title:
-      'Hulley Enterprises Limited (Cyprus) v. The Russian Federation (PCA Case No. 2005-03/AA226); Yukos Universal Limited (Isle of Man) v. The Russian Federation (PCA Case No. 2005-04/AA227); Veteran Petroleum Limited (Cyprus) v. The Russian Federation (PCA Case No. 2005-05/AA228). Final Awards',
-    url: 'https://pca-cpa.org/en/cases/60/',
-    stored: ['pca-cpa.org/en/'],
   },
   // Official statistics and datasets.
   {
@@ -946,16 +915,6 @@ export const entries: readonly Entry[] = [
     url: 'https://interfax.com/newsroom/top-stories/101016/',
   },
   {
-    key: 'interfax-novatek',
-    group: 'press',
-    cite: 'Interfax, 2022',
-    issuer: 'Interfax',
-    date: '2022, March 21',
-    title:
-      'Mikhelson transfers around 14% stake in Novatek to direct ownership, eliminates Cyprus ‘layer’',
-    url: 'https://interfax.com/newsroom/top-stories/77137/',
-  },
-  {
     key: 'reuters-lng',
     group: 'press',
     cite: 'Reuters, 2025a',
@@ -965,6 +924,15 @@ export const entries: readonly Entry[] = [
     url: 'https://www.bairdmaritime.com/shipping/tankers/gas/russian-lng-exports-dip-in-2025-as-sanctions-squeeze-logistics',
     detail: 'Reprinted by Baird Maritime',
     stored: ['bairdmaritime.com/'],
+  },
+  {
+    key: 'nv-gazprom-2025',
+    group: 'press',
+    cite: 'NV, 2026',
+    issuer: 'The New Voice of Ukraine',
+    date: '2026, March 23',
+    title: 'Gazprom gas output falls to 405 bcm in 2025',
+    url: 'https://english.nv.ua/business/gazprom-gas-output-falls-to-405-bcm-in-2025-50594119.html',
   },
   {
     key: 'reuters-urals-2019',
@@ -1030,15 +998,6 @@ export const entries: readonly Entry[] = [
     date: '2024, February 19',
     title: 'UAE Banks Limit Payments With Russia Over Secondary Sanctions Threat – Vedomosti',
     url: 'https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143',
-  },
-  {
-    key: 'mt-surgut',
-    group: 'press',
-    cite: 'The Moscow Times, 2013',
-    issuer: 'The Moscow Times',
-    date: '2013, April 30',
-    title: 'Surgut Discloses $29Bln Cash Hoard',
-    url: 'https://www.themoscowtimes.com/2013/04/30/surgut-discloses-29bln-cash-hoard-a23733',
   },
   {
     key: 'bell-china',
@@ -1181,16 +1140,6 @@ export const entries: readonly Entry[] = [
     detail: 'KPBS Public Media',
   },
   {
-    key: 'reuters-khodorkovsky',
-    group: 'press',
-    cite: 'Reuters, 2025b',
-    issuer: 'Reuters',
-    date: '2025, October 14',
-    title:
-      'Russia accuses Khodorkovsky and other exiled Kremlin critics of conspiring to seize power',
-    url: 'https://www.reuters.com/world/russia-says-it-has-opened-new-criminal-case-against-exiled-kremlin-critic-2025-10-14/',
-  },
-  {
     key: 'bbc-prigozhin',
     group: 'press',
     cite: 'Shevchenko, 2023',
@@ -1289,6 +1238,78 @@ export const entries: readonly Entry[] = [
   },
 ];
 
+// The short author of an issuer whose entry has no author-year reference (APA 7).
+const AUTHORS: Readonly<Record<string, string>> = {
+  'Council of the European Union': 'Council of the EU',
+  'European Commission': 'European Commission',
+  'European Parliament and Council of the European Union': 'European Parliament & Council',
+  'Publications Office of the European Union, EUR-Lex': 'Council of the EU',
+  'U.S. Department of the Treasury': 'US Treasury',
+  'Office of Foreign Assets Control': 'OFAC',
+  'Financial Crimes Enforcement Network': 'FinCEN',
+  'World Bank': 'World Bank',
+  'Russian Federation': 'Russian Federation',
+};
+const YEAR = /^(?:\d{4}(?:[–-]\d{4})?|n\.d\.)[a-z]?$/u;
+
+/** The words of a reference before its year, and its year, when the reference ends with a year. */
+const splitCite = (cite: string): [string, string] | undefined => {
+  const at = cite.lastIndexOf(', ');
+  const tail = at > 0 ? cite.slice(at + 2) : '';
+  return YEAR.test(tail) ? [cite.slice(0, at), tail.replace(/[a-z]$/u, '')] : undefined;
+};
+
+/** The author and the year of an entry: from its reference, or the short name of its issuer and
+ * the year of its date when the reference holds no year. */
+const authorYearOf = (entry: Entry): [string, string] => {
+  const split = splitCite(entry.cite);
+  if (split !== undefined) return split;
+  const author = AUTHORS[entry.issuer];
+  if (author === undefined) throw new Error(`No short author for ${entry.key}`);
+  return [author, /\d{4}/u.exec(entry.date)?.[0] ?? 'n.d.'];
+};
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+const dateKey = (entry: Entry): string => {
+  const [year = '', rest = ''] = entry.date.split(', ');
+  const [month = '', day = ''] = rest.split(' ');
+  const number = String(MONTHS.indexOf(month) + 1).padStart(2, '0');
+  return `${year}-${number}-${day.padStart(2, '0')}-${entry.key}`;
+};
+
+/** Each entry with its APA 7 author-year reference: two entries of the same author and year get
+ * a letter, in the order of their dates. */
+export const entries: readonly Entry[] = (() => {
+  const groups = new Map<string, Entry[]>();
+  for (const entry of listed) {
+    const label = authorYearOf(entry).join(', ');
+    groups.set(label, [...(groups.get(label) ?? []), entry]);
+  }
+  const cites = new Map<string, string>();
+  for (const [label, group] of groups)
+    [...group]
+      .sort((a, b) => dateKey(a).localeCompare(dateKey(b)))
+      .forEach((entry, index) =>
+        cites.set(
+          entry.key,
+          group.length === 1 ? label : `${label}${'abcdefghijklmnopqrstuvwxyz'.charAt(index)}`,
+        ),
+      );
+  return listed.map((entry) => ({ ...entry, cite: cites.get(entry.key) ?? entry.cite }));
+})();
+
 const byKey = new Map(entries.map((entry) => [entry.key, entry]));
 
 /** The entry of one key. A key with no entry is a fault of the text. */
@@ -1301,9 +1322,14 @@ export function entryOf(key: string): Entry {
 // `@key` cites an entry; ` | ` opens the short note of a note line.
 export const KEY = /@([a-z0-9][a-z0-9-]*)/g;
 const SPLIT = ' | ';
+// The longest reference in the text, with its parenthesis, and its most items.
+export const MAX_CITE = 40;
+const MAX_ITEMS = 3;
+const PAGE = /^pp?\. [\d–-]+$/u;
+const CALCULATION = /authors' calculations/iu;
 
-/** A note line in two parts: the reference that the sentence shows, and the short note (the
- * explanation, the caveat or the counting rule) that the page keeps beside it. */
+/** A note line in two parts: the reference of the note line, and the short note (the
+ * explanation, the caveat or the counting rule). */
 export function splitNote(text: string): { readonly cite: string; readonly note: string } {
   const at = text.indexOf(SPLIT);
   return at < 0
@@ -1316,19 +1342,96 @@ export const keysOf = (text: string): readonly string[] => [
   ...new Set([...text.matchAll(KEY)].map((match) => match[1] ?? '')),
 ];
 
-/** The reference of a note line as the reader sees it, with no parenthesis: each `@key` becomes
- * the short reference of its entry. */
-export const citeText = (text: string): string =>
-  splitNote(text).cite.replace(KEY, (_, key: string) => entryOf(key).cite);
+/** The parts of a reference: each `@key`, the words before it, and its pinpoint (the words
+ * after it up to the next `;`). */
+const piecesOf = (text: string): { lead: string; key: string; locator: string }[] =>
+  splitNote(text)
+    .cite.split(';')
+    .flatMap((segment) => {
+      const match = /^(.*?)@([a-z0-9][a-z0-9-]*)(.*)$/su.exec(segment.trim());
+      if (match === null) return [];
+      const [, lead = '', key = '', rest = ''] = match;
+      return [{ lead, key, locator: rest.replace(/^[,\s]+/u, '').trim() }];
+    });
 
-/** The number of each short note, in the order of the notes of the report. A note with no short
- * note has no number. */
+/** The items of the reference in the text, each with the key of its first entry: the entries of
+ * one author go in one item, and only a page stays as a pinpoint. No item when the note line is a
+ * calculation of the authors, or when the reference has more than three items or more than 40
+ * characters: then the numbered note gives the sources. */
+export function citeParts(text: string): readonly { label: string; key: string }[] {
+  if (CALCULATION.test(splitNote(text).cite)) return [];
+  const pieces = piecesOf(text);
+  const items: { author: string; years: string[]; key: string }[] = [];
+  for (const { key } of pieces) {
+    // The reference of each entry is "author, year" with its letter.
+    const { cite } = entryOf(key);
+    const at = cite.lastIndexOf(', ');
+    const [author, year] = [cite.slice(0, at), cite.slice(at + 2)];
+    const item = items.find((one) => one.author === author);
+    if (item === undefined) items.push({ author, years: [year], key });
+    else if (!item.years.includes(year)) item.years.push(year);
+  }
+  const parts = items.map(({ author, years, key }) => ({
+    label: `${author}, ${years.join(', ')}`,
+    key,
+  }));
+  const only = pieces.length === 1 ? pieces[0] : undefined;
+  const first = parts[0];
+  if (only !== undefined && first !== undefined && PAGE.test(only.locator)) {
+    const label = `${first.label}, ${only.locator}`;
+    if (label.length + 2 <= MAX_CITE) return [{ label, key: first.key }];
+  }
+  const length = parts.map((part) => part.label).join('; ').length + 2;
+  return parts.length > MAX_ITEMS || length > MAX_CITE ? [] : parts;
+}
+
+/** The reference of a note line as the reader sees it, with no parenthesis; empty when the text
+ * shows only the number of the note. */
+export const citeText = (text: string): string =>
+  citeParts(text)
+    .map((part) => part.label)
+    .join('; ');
+
+/** The numbered note of a note line: the sources when the text shows no reference (a
+ * calculation of the authors, or a long reference), then the short note. Empty when the note
+ * line needs no number. */
+export function noteText(text: string): string {
+  const short = splitNote(text).note;
+  const sources =
+    citeText(text) === ''
+      ? piecesOf(text)
+          .map(({ lead, key }) => `${lead}${entryOf(key).cite}`)
+          .join('; ')
+      : '';
+  const lead =
+    sources === ''
+      ? ''
+      : `${sources.charAt(0).toUpperCase()}${sources.slice(1).replace(/\.$/u, '')}.`;
+  return [lead, short].filter((one) => one !== '').join(' ');
+}
+
+/** The pinpoints (annex, article, line, page, entry) of each entry, from all note lines: the
+ * bibliography gives them, and the text does not. */
+export function locatorsOf(
+  notes: readonly { readonly text: string }[],
+): ReadonlyMap<string, readonly string[]> {
+  const by = new Map<string, string[]>();
+  for (const note of notes)
+    for (const { key, locator } of piecesOf(note.text)) {
+      if (locator === '' || CALCULATION.test(locator)) continue;
+      const list = by.get(key) ?? [];
+      if (!list.includes(locator)) by.set(key, [...list, locator]);
+    }
+  return by;
+}
+
+/** The number of each numbered note, in the order of the notes of the report. A note line with
+ * no numbered note has no number. */
 export function shortNoteNumbers(
   notes: readonly { readonly id: string; readonly text: string }[],
 ): ReadonlyMap<string, number> {
   const numbers = new Map<string, number>();
-  for (const note of notes)
-    if (splitNote(note.text).note !== '') numbers.set(note.id, numbers.size + 1);
+  for (const note of notes) if (noteText(note.text) !== '') numbers.set(note.id, numbers.size + 1);
   return numbers;
 }
 

@@ -95,7 +95,7 @@ describe.each([
   test('the pages of the site have their text, and a title, outside any script', () => {
     const { page } = site();
     const expected: readonly (readonly [string, string, string])[] = [
-      ['index.html', 'The problem.', 'The nodes that sustain Russia’s war in 2026 · GAB'],
+      ['index.html', 'The problem.', 'The entities that sustain Russia’s war in 2026 · GAB'],
       ['bibliography/index.html', 'Bibliography', 'Report bibliography · GAB'],
       ['nodes/index.html', 'The labels', 'GAB dataset: release overview'],
       ['map/index.html', 'Map', 'Map · GAB dataset'],

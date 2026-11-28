@@ -105,7 +105,7 @@ export function ControllersFigure() {
       <svg
         viewBox={`0 0 640 ${height}`}
         role="img"
-        aria-label="Ultimate controllers of the nodes under watch, by holding and layer, 2026"
+        aria-label="Ultimate controllers of the entities under watch, by holding and layer, 2026"
       >
         {['Ultimate controller', 'Holding', 'Layer'].map((t, i) => (
           <text key={t} x={[XC, XH, XL][i]} y="12" className="lp-axis">

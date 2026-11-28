@@ -3,7 +3,7 @@ import type { SiteManifest } from './site-manifest.ts';
 
 /** The main pages of the site, by folder, with a short note. The folder is empty for the home page. */
 export const MAIN_PAGES: readonly (readonly [folder: string, name: string, note: string])[] = [
-  ['', 'Report', 'The report on the nodes that sustain the war.'],
+  ['', 'Report', 'The report on the entities that sustain the war.'],
   ['nodes', 'Release overview', 'The nodes, the labels and the counts of the release.'],
   ['map', 'Map', 'The assets that have a position.'],
   ['downloads', 'Downloads', 'The files of the release, with their checksums.'],

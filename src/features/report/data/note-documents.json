@@ -609,6 +609,13 @@
           "retrievedAt": "2026-10-25",
           "url": "https://www.bairdmaritime.com/shipping/tankers/gas/russian-lng-exports-dip-in-2025-as-sanctions-squeeze-logistics",
           "match": "exact"
+        },
+        {
+          "id": "doc_6e07561ef47b",
+          "type": "other",
+          "retrievedAt": "2026-11-28",
+          "url": "https://english.nv.ua/business/gazprom-gas-output-falls-to-405-bcm-in-2025-50594119.html",
+          "match": "exact"
         }
       ]
     },
@@ -736,25 +743,6 @@
           "retrievedAt": "2026-10-25",
           "url": "http://publications.europa.eu/resource/cellar/75a2e29c-7345-11ed-9887-01aa75ed71a1.0006.01/DOC_1",
           "match": "manual"
-        }
-      ]
-    },
-    {
-      "id": "24",
-      "documents": [
-        {
-          "id": "doc_8f7f4e6b5064",
-          "type": "press_release",
-          "retrievedAt": "2026-11-03",
-          "url": "https://home.treasury.gov/news/press-releases/jy1795",
-          "match": "exact"
-        },
-        {
-          "id": "doc_912b791ccd20",
-          "type": "press_release",
-          "retrievedAt": "2026-10-09",
-          "url": "https://home.treasury.gov/news/press-releases/jy1795",
-          "match": "exact"
         }
       ]
     },
@@ -5116,18 +5104,6 @@
       ]
     },
     {
-      "id": "103",
-      "documents": [
-        {
-          "id": "doc_b0f3594ec276",
-          "type": "legal_act",
-          "retrievedAt": "2026-10-25",
-          "url": "http://publications.europa.eu/resource/cellar/47858cb9-f298-11ef-981b-01aa75ed71a1.0006.03/DOC_1",
-          "match": "manual"
-        }
-      ]
-    },
-    {
       "id": "104",
       "documents": [
         {
@@ -5260,32 +5236,6 @@
       ]
     },
     {
-      "id": "108",
-      "documents": [
-        {
-          "id": "doc_af7254af3b12",
-          "type": "news_article",
-          "retrievedAt": "2026-10-31",
-          "url": "https://www.reuters.com/world/russia-says-it-has-opened-new-criminal-case-against-exiled-kremlin-critic-2025-10-14/",
-          "match": "exact"
-        },
-        {
-          "id": "doc_e154eb99f86f",
-          "type": "other",
-          "retrievedAt": "2026-10-31",
-          "url": "https://pca-cpa.org/en/cases/61/",
-          "match": "manual"
-        },
-        {
-          "id": "doc_4de2924f0caf",
-          "type": "other",
-          "retrievedAt": "2026-10-31",
-          "url": "https://pca-cpa.org/en/news/final-awards-issued-in-3-arbitrations-between-former-shareholders-of-yukos-and-the-russian-federation/",
-          "match": "manual"
-        }
-      ]
-    },
-    {
       "id": "109",
       "documents": [
         {
@@ -5331,39 +5281,6 @@
       ]
     },
     {
-      "id": "112",
-      "documents": [
-        {
-          "id": "doc_bcae5346080d",
-          "type": "other",
-          "retrievedAt": "2026-10-31",
-          "url": "https://www.kpbs.org/news/international/2022/03/29/how-putin-conquered-russias-oligarchy",
-          "match": "exact"
-        },
-        {
-          "id": "doc_65244fe206f0",
-          "type": "other",
-          "retrievedAt": "2026-10-31",
-          "url": "https://www.kpbs.org/news/international/2022/03/29/how-putin-conquered-russias-oligarchy",
-          "match": "exact"
-        },
-        {
-          "id": "doc_3a65bbcb364e",
-          "type": "news_article",
-          "retrievedAt": "2026-10-31",
-          "url": "http://news.bbc.co.uk/2/hi/business/4041551.stm",
-          "match": "manual"
-        },
-        {
-          "id": "doc_3600f80f13e8",
-          "type": "news_article",
-          "retrievedAt": "2026-10-31",
-          "url": "http://news.bbc.co.uk/2/hi/business/4041551.stm",
-          "match": "manual"
-        }
-      ]
-    },
-    {
       "id": "113",
       "documents": [
         {
@@ -5376,74 +5293,6 @@
       ]
     },
     {
-      "id": "114",
-      "documents": [
-        {
-          "id": "doc_31152bd7481d",
-          "type": "register_entry",
-          "retrievedAt": "2026-11-26",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "exact"
-        },
-        {
-          "id": "doc_f7961683dc54",
-          "type": "register_entry",
-          "retrievedAt": "2026-11-05",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "exact"
-        },
-        {
-          "id": "doc_aedb38de5d38",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-30",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "exact"
-        },
-        {
-          "id": "doc_e7a088b23a78",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-29",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "exact"
-        },
-        {
-          "id": "doc_39373f3619b9",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-27",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "exact"
-        },
-        {
-          "id": "doc_f4983c968614",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-26",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "exact"
-        },
-        {
-          "id": "doc_0d87329971a7",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-16",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "exact"
-        },
-        {
-          "id": "doc_f99f3befeedd",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-13",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "exact"
-        },
-        {
-          "id": "doc_91466533844a",
-          "type": "other",
-          "retrievedAt": "2026-10-27",
-          "url": "https://interfax.com/newsroom/top-stories/77137/",
-          "match": "exact"
-        }
-      ]
-    },
-    {
       "id": "115",
       "documents": [
         {
@@ -5452,25 +5301,6 @@
           "retrievedAt": "2026-10-09",
           "url": "https://publications.europa.eu/resource/cellar/11208c18-c333-11f1-bfcb-01aa75ed71a1.0002.03/DOC_1",
           "match": "manual"
-        }
-      ]
-    },
-    {
-      "id": "116",
-      "documents": [
-        {
-          "id": "doc_050e171b2a24",
-          "type": "press_release",
-          "retrievedAt": "2026-10-31",
-          "url": "https://home.treasury.gov/news/press-releases/sm0338",
-          "match": "exact"
-        },
-        {
-          "id": "doc_a0f8fdf19e96",
-          "type": "press_release",
-          "retrievedAt": "2026-10-09",
-          "url": "https://home.treasury.gov/news/press-releases/sm0338",
-          "match": "exact"
         }
       ]
     },
@@ -5547,32 +5377,6 @@
           "retrievedAt": "2026-10-09",
           "url": "https://publications.europa.eu/resource/cellar/11208c18-c333-11f1-bfcb-01aa75ed71a1.0002.03/DOC_1",
           "match": "manual"
-        }
-      ]
-    },
-    {
-      "id": "121",
-      "documents": [
-        {
-          "id": "doc_3aafb1b00937",
-          "type": "press_release",
-          "retrievedAt": "2026-10-31",
-          "url": "https://home.treasury.gov/news/press-releases/jy0602",
-          "match": "exact"
-        },
-        {
-          "id": "doc_80b7065b03be",
-          "type": "press_release",
-          "retrievedAt": "2026-10-25",
-          "url": "https://home.treasury.gov/news/press-releases/jy0602",
-          "match": "exact"
-        },
-        {
-          "id": "doc_b1c3abb791d5",
-          "type": "press_release",
-          "retrievedAt": "2026-10-10",
-          "url": "https://home.treasury.gov/news/press-releases/jy0602",
-          "match": "exact"
         }
       ]
     },
@@ -5833,32 +5637,6 @@
           "retrievedAt": "2026-10-18",
           "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
           "match": "exact"
-        }
-      ]
-    },
-    {
-      "id": "125",
-      "documents": [
-        {
-          "id": "doc_c7ccc46c4aa6",
-          "type": "news_article",
-          "retrievedAt": "2026-10-31",
-          "url": "https://www.themoscowtimes.com/2013/04/30/surgut-discloses-29bln-cash-hoard-a23733",
-          "match": "exact"
-        },
-        {
-          "id": "doc_8ed182451b71",
-          "type": "news_article",
-          "retrievedAt": "2026-10-27",
-          "url": "https://www.themoscowtimes.com/2013/04/30/surgut-discloses-29bln-cash-hoard-a23733",
-          "match": "exact"
-        },
-        {
-          "id": "doc_98da1da8dea2",
-          "type": "legal_act",
-          "retrievedAt": "2026-10-09",
-          "url": "https://publications.europa.eu/resource/cellar/11208c18-c333-11f1-bfcb-01aa75ed71a1.0002.03/DOC_1",
-          "match": "manual"
         }
       ]
     },

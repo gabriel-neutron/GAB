@@ -24,7 +24,7 @@
     "calls": "one call for each port and month, every page; a visit counts when it starts in the window"
   },
   "imoList": {
-    "source": "The tankers that the report data names with an IMO number: the designated tankers of the fleet census (figure 7) and the ship sample of the fleet nodes of the report graph, union.",
+    "source": "The tankers that the report data names with an IMO number: the designated tankers of the fleet census (figure 7) and the ship sample of the fleet entities of the report graph, union.",
     "count": 722,
     "imos": [
       "1031537",
