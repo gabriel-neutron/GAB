@@ -288,7 +288,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'In total, 637 nodes are under watch, counting the ships of one management company as a single node. In the data release, 12 of these nodes no longer have an open designation. The pay layer holds the most, because the lists of designated ships are long and well documented. For 572 of them, each of the three conditions rests on a document from an official issuer. A semi-automated verification system checks the facts: automatic rules, AI reviewers, fixed checks of each excerpt and checks by the authors. Annex A describes how the facts are collected and checked. Section A.3 says how the count of nodes under watch was made.',
+        text: 'In total, 637 nodes are under watch, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For 572 of them, each of the three conditions rests on a document from an official issuer. In the data release, 12 of the 637 nodes no longer have an open designation. A semi-automated verification system checks the facts: automatic rules, AI reviewers, fixed checks of each excerpt and checks by the authors. Annex A describes how the facts are collected and checked. Section A.3 says how the count of nodes under watch was made.',
       },
     ],
     notes: [
