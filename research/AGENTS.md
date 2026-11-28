@@ -199,7 +199,9 @@ operator to accept" a proposal.
   - `join_entities` joins two accepted entities of one thing into the older one.
   - `remove_value` takes one wrong value out of a list of an entity: an alias, a former name (also
     one that a join added), a flag, an MMSI or a call sign. A change of these lists through
-    `propose` only adds values.
+    `propose` only adds values. It also takes one wrong value out of one key of a relation, and
+    the relation stays: for example, a source gives the items of all the deliveries of a supplier,
+    and not the items of each recipient. A key that the relation does not hold is refused.
   - `rename_entity` gives an entity the current name that the cited passage writes, and keeps the
     name before as a former name or an alias.
   - `remove_source` takes one wrong source out of a relation. The relation keeps one source.

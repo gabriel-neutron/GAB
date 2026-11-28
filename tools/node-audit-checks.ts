@@ -23,9 +23,14 @@ import {
   plainIdentifier,
   UNIQUE_KEYS,
 } from '@gab/tools/duplicate-identifier';
-import { findExcerpt } from '@gab/tools/excerpt';
+import { cutsToken, findExcerpt, fold } from '@gab/tools/excerpt';
 
-import { valuesOf, type claimedDays, type ReleaseFiles } from './critical-nodes-replay.ts';
+import {
+  countryNames,
+  valuesOf,
+  type claimedDays,
+  type ReleaseFiles,
+} from './critical-nodes-replay.ts';
 
 type Row = Readonly<Record<string, string>>;
 
@@ -129,29 +134,301 @@ export const holdsIdentifier = (text: string, identifier: string): boolean => {
   return new RegExp(`(?<!${edge})${body}(?!${edge})`, 'u').test(text.toUpperCase());
 };
 
+// A legal form, which a register writes before or after the name: "PJSC VTB Bank" is "VTB BANK
+// PUBLIC JOINT STOCK COMPANY".
+const LEGAL_FORM = new RegExp(
+  String.raw`(?<![\p{L}\p{N}])(?:` +
+    [
+      'public joint[- ]stock company',
+      'open joint[- ]stock company',
+      'closed joint[- ]stock company',
+      'joint[- ]stock company',
+      'limited liability company',
+      'публичное акционерное общество',
+      'акционерное общество',
+      'общество с ограниченной ответственностью',
+      'pjsc|ojsc|cjsc|jsc|pao|oao|zao|ao|ooo|llc|ltd|limited|inc|corp',
+      'пао|оао|зао|ао|ооо',
+    ].join('|') +
+    String.raw`)(?![\p{L}\p{N}])`,
+  'gu',
+);
+
+/** A name or a text in one form for a name match: folded, lower case, no legal form, no quotes
+ * and no brackets. */
+const plainName = (text: string): string =>
+  fold(text)
+    .text.toLowerCase()
+    .replace(/[«»"'.,()]/gu, ' ')
+    .replace(LEGAL_FORM, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+
+/** True when the text holds the name as whole words, with no regard to case or legal form. */
+export const holdsName = (text: string, name: string): boolean => {
+  const core = plainName(name);
+  if (core === '') return false;
+  const body = core.replace(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
+  return new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, 'u').test(plainName(text));
+};
+
+const MONTHS: Readonly<Record<string, number>> = Object.fromEntries(
+  [
+    ['january', 'jan', 'января', 'январь'],
+    ['february', 'feb', 'февраля', 'февраль'],
+    ['march', 'mar', 'марта', 'март'],
+    ['april', 'apr', 'апреля', 'апрель'],
+    ['may', 'мая', 'май'],
+    ['june', 'jun', 'июня', 'июнь'],
+    ['july', 'jul', 'июля', 'июль'],
+    ['august', 'aug', 'августа', 'август'],
+    ['september', 'sep', 'sept', 'сентября', 'сентябрь'],
+    ['october', 'oct', 'октября', 'октябрь'],
+    ['november', 'nov', 'ноября', 'ноябрь'],
+    ['december', 'dec', 'декабря', 'декабрь'],
+  ].flatMap((names, at) => names.map((name) => [name, at + 1])),
+);
+const MONTH = String.raw`(\p{L}+)\.?`;
+const iso = (year: string, month: number, day: number): string =>
+  `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+/** 'yes' when the text writes the day in a word form ("24 February 2022", "December 18, 2026") or
+ * a number form whose order is clear ("02/24/2022", "13.8.2026"). 'ambiguous' when only a number
+ * form with day and month both up to 12 can be the day: the order is a guess. */
+export const holdsDay = (text: string, day: string): 'yes' | 'ambiguous' | 'no' => {
+  const lower = text.toLowerCase();
+  const [year = ''] = day.split('-');
+  const want = (m: number | undefined, d: string) =>
+    m !== undefined && iso(year, m, Number(d)) === day;
+  for (const found of lower.matchAll(
+    new RegExp(String.raw`(?<!\d)(\d{1,2})\.?\s+${MONTH}\s*,?\s+(\d{4})(?!\d)`, 'gu'),
+  ))
+    if (found[3] === year && want(MONTHS[found[2] ?? ''], found[1] ?? '')) return 'yes';
+  for (const found of lower.matchAll(
+    new RegExp(String.raw`${MONTH}\s+(\d{1,2})(?:st|nd|rd|th)?\s*,?\s+(\d{4})(?!\d)`, 'gu'),
+  ))
+    if (found[3] === year && want(MONTHS[found[1] ?? ''], found[2] ?? '')) return 'yes';
+  let ambiguous = false;
+  for (const found of lower.matchAll(/(?<![\d./])(\d{1,2})([./])(\d{1,2})\2(\d{4})(?!\d)/gu)) {
+    if (found[4] !== year) continue;
+    const first = Number(found[1]);
+    const second = Number(found[3]);
+    const dayFirst = second <= 12 && want(second, String(first));
+    const monthFirst = first <= 12 && want(first, String(second));
+    if (!dayFirst && !monthFirst) continue;
+    if (first > 12 || second > 12 || first === second) return 'yes';
+    ambiguous = true;
+  }
+  return ambiguous ? 'ambiguous' : 'no';
+};
+const SCALES: readonly (readonly [RegExp, number])[] = [
+  [/^(?:трлн|trillion|tn)$/u, 1e12],
+  [/^(?:млрд|billion|bn|bln)$/u, 1e9],
+  [/^(?:млн|million|mn|mln)$/u, 1e6],
+  [/^(?:тыс|thousand)$/u, 1e3],
+];
+const scaleOf = (word: string): number | undefined =>
+  SCALES.find(([pattern]) => pattern.test(word))?.[1];
+const near = (a: number, b: number): boolean =>
+  Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+
+interface Reading {
+  readonly value: number;
+  /** False when the text can also give another reading of the same number. */
+  readonly certain: boolean;
+}
+
+/** The readings of each number of a text, with the scale word after it: "109,2 млн" is 109.2e6,
+ * "5 108 691" and "5,108,691" are 5108691. One group of three digits after a comma or a point is
+ * thousands or a decimal part: "900,000 bpd" is certain 900000 and uncertain 900, and "1,100 млн"
+ * is uncertain in each reading, because a scale word often follows a decimal comma. */
+const numbersOf = (text: string): { readings: Reading[]; scale: number | undefined }[] => {
+  const out: { readings: Reading[]; scale: number | undefined }[] = [];
+  const pattern =
+    /(?<![\p{L}\p{N}.,])(?:(\d{1,3}(?:([ \u00A0\u202F,.'])\d{3})(?:\2\d{3})*)([.,]\d+)?|(\d+)(?:[.,](\d+))?)(?!\p{N})(?:\s*(\p{L}+))?/gu;
+  for (const found of text.toLowerCase().matchAll(pattern)) {
+    const scale = scaleOf(found[6] ?? '');
+    const grouped = found[1];
+    if (grouped === undefined) {
+      out.push({
+        readings: [{ value: Number(`${found[4] ?? ''}.${found[5] ?? '0'}`), certain: true }],
+        scale,
+      });
+      continue;
+    }
+    const separator = found[2] ?? '';
+    const whole = grouped.split(separator).join('');
+    const tail = (found[3] ?? '').slice(1);
+    const thousands = Number(`${whole}.${tail === '' ? '0' : tail}`);
+    const twoWays =
+      (separator === ',' || separator === '.') && grouped.split(separator).length === 2 && !tail;
+    out.push({
+      readings: twoWays
+        ? [
+            { value: thousands, certain: scale === undefined },
+            { value: Number(grouped.replace(separator, '.')), certain: false },
+          ]
+        : [{ value: thousands, certain: true }],
+      scale,
+    });
+  }
+  return out;
+};
+
+/** The scale of an attribute from its name: "total_assets_bn_byn" is in billions, and "mt" is
+ * million tonnes (in a text, "mt" is a metric tonne). */
+const attributeScale = (attribute: string): number =>
+  attribute
+    .split('_')
+    .map((part) => (part === 'mt' ? 1e6 : scaleOf(part)))
+    .find((one) => one !== undefined) ?? 1;
+
+/** 'yes' when the text writes the number at the scale that the text states, or as the claim writes
+ * it when the text states no scale. 'ambiguous' when only an uncertain reading gives the value.
+ * 'scale' when only a power of 1000 that the text does not state joins the two. */
+export const holdsNumber = (
+  text: string,
+  value: number,
+  attribute: string,
+): 'yes' | 'ambiguous' | 'scale' | 'no' => {
+  const target = value * attributeScale(attribute);
+  let open: 'ambiguous' | 'scale' | 'no' = 'no';
+  for (const { readings, scale: stated } of numbersOf(text))
+    for (const one of readings) {
+      if (stated !== undefined ? near(one.value * stated, target) : near(one.value, value)) {
+        if (one.certain) return 'yes';
+        open = 'ambiguous';
+      }
+      if (
+        open === 'no' &&
+        stated === undefined &&
+        [1e3, 1e6, 1e9, 1e12].some((k) => near(one.value * k, target))
+      )
+        open = 'scale';
+    }
+  return open;
+};
+
+// An identifier is never read as a number: "273 278 850" is not the MMSI 273278850.
+const NOT_A_NUMBER = /(?:^|_)(?:imo|mmsi|lei|bic|id|year|number|code)(?:_|$)/u;
+const NUMBER = /^-?\d+(?:\.\d+)?$/u;
+
+/** How an excerpt holds one value of an attribute: as written, or in a written form of a day, a
+ * number or a country code. */
+const holdsValue = (
+  text: string,
+  value: string,
+  attribute: string,
+): 'yes' | 'ambiguous_date' | 'ambiguous_number' | 'scale_not_stated' | 'no' => {
+  const asNumber = NUMBER.test(value) && !NOT_A_NUMBER.test(attribute) && !UNIQUE.has(attribute);
+  const span = findExcerpt(text, value);
+  // A number is a whole token: 900 is not in "900,000".
+  if (span !== null && !(asNumber && cutsToken(text, span))) return 'yes';
+  if (/^\d{4}-\d{2}-\d{2}$/u.test(value)) {
+    const found = holdsDay(text, value);
+    return found === 'ambiguous' ? 'ambiguous_date' : found;
+  }
+  // A country code holds only on a field that is the country name, alone or after its label:
+  // "Atlanta, Georgia" or "owned by a Russian businessman" states no country of the entity.
+  if (/^[A-Z]{2}$/u.test(value)) {
+    const fields = text.split(/[,;|\t\n]+/u).map((one) =>
+      one
+        .replace(/^["'\s]+|["'\s.]+$/gu, '')
+        .replace(/^(?:country|flag|nationality|jurisdiction|place of registration)\s*:\s*/iu, '')
+        .toLowerCase(),
+    );
+    // "Russian Federation" is the full name of Russia; an adjective alone is no country.
+    const names = countryNames(value).flatMap((name) => [name, `${name} federation`]);
+    return names.some((name) => fields.includes(name.toLowerCase()) && name !== 'russian')
+      ? 'yes'
+      : 'no';
+  }
+  if (asNumber) {
+    const found = holdsNumber(text, Number(value), attribute);
+    return found === 'scale'
+      ? 'scale_not_stated'
+      : found === 'ambiguous'
+        ? 'ambiguous_number'
+        : found;
+  }
+  return 'no';
+};
+const UNIQUE = new Set<string>(UNIQUE_KEYS);
+
+/** The names of each far end of a relation that the release holds (label, aliases, former names,
+ * other scripts), and for a legal act the documents that give it. */
+export interface FarEnd {
+  readonly names: readonly string[];
+  readonly documents: readonly string[];
+}
+
+const NAME_ATTRIBUTES = new Set(['aliases', 'former_names', 'name_cyrillic', 'name_other']);
+
+export const farEndsOf = (
+  entities: readonly Row[],
+  claims: Iterable<Claim>,
+): Map<string, FarEnd> => {
+  const ends = new Map<string, { names: string[]; documents: string[] }>();
+  for (const one of entities)
+    ends.set(one['id'] ?? '', {
+      names: [one['label'] ?? ''].filter((name) => name !== ''),
+      documents:
+        one['type'] === 'legal_act'
+          ? (one['document_ids'] ?? '').split(/[\s;,]+/u).filter((id) => id !== '')
+          : [],
+    });
+  for (const claim of claims) {
+    if (claim.kind !== 'attribute' || !NAME_ATTRIBUTES.has(claim.attribute)) continue;
+    const own = ends.get(claim.subject);
+    if (own === undefined) continue;
+    try {
+      own.names.push(...valuesOf(claim.value).filter((name) => name !== ''));
+    } catch {
+      // A list that does not parse gives no name; value_in_excerpt of that claim fails it.
+    }
+  }
+  return ends;
+};
+
+const ACT_LINKS = new Set(['designated_by', 'restricted_by', 'exempted_by']);
+
 export const excerptPresent = (claim: Claim): Result =>
   claim.citations.some((row) => excerptOf(row).trim() !== '')
     ? result('excerpt_present', 'pass', 'an excerpt is given')
     : result('excerpt_present', 'fail', 'no_excerpt');
 
-/** An attribute: one excerpt holds each value (folded match). A relation: one excerpt names the far
- * end, by its label or one of its identifiers. A designation goes to designation_source. */
+/** An attribute: one excerpt holds each value (folded match, or a written form of a day, a number
+ * or a country code). A relation: one excerpt names the far end, by a name that the release holds
+ * for it or one of its identifiers, or cites the act that is the far end. A designation goes to
+ * designation_source. */
 export const valueInExcerpt = (
   claim: Claim,
   identifiers: ReadonlyMap<string, ReadonlyMap<string, readonly string[]>>,
+  farEnds: ReadonlyMap<string, FarEnd> = new Map(),
 ): Result => {
   const check = 'value_in_excerpt';
   if (claim.kind === 'relation') {
     if (claim.relationType === 'designated_by')
       return result(check, 'not_applicable', 'checked by designation_source');
     const far = [...(identifiers.get(claim.object)?.values() ?? [])].flat();
+    const end = farEnds.get(claim.object);
+    const names = [claim.objectLabel, ...(end?.names ?? [])].filter((name) => name !== '');
     const named = claim.citations.some(
       (row) =>
         (claim.objectLabel !== '' && findExcerpt(excerptOf(row), claim.objectLabel) !== null) ||
+        names.some((name) => holdsName(excerptOf(row), name)) ||
         far.some((one) => holdsIdentifier(excerptOf(row), one)),
     );
-    return named
-      ? result(check, 'pass', 'an excerpt names the far end')
+    if (named) return result(check, 'pass', 'an excerpt names the far end');
+    // The official text of an act names the act by its own text, not by the label of the release.
+    const act = claim.citations.find(
+      (row) =>
+        ACT_LINKS.has(claim.relationType) &&
+        OFFICIAL_TYPES.has(row['document_type'] ?? '') &&
+        (end?.documents ?? []).includes(row['document_id'] ?? ''),
+    );
+    return act !== undefined
+      ? result(check, 'pass', `the cited document ${act['document_id'] ?? ''} is the act`)
       : result(check, 'cannot_check', 'far_end_not_named');
   }
   let values: string[];
@@ -161,10 +438,16 @@ export const valueInExcerpt = (
     return result(check, 'fail', 'value_not_parsed');
   }
   if (values.length === 0) return result(check, 'not_applicable', 'no_value');
-  const held = claim.citations.some((row) =>
-    values.every((one) => findExcerpt(excerptOf(row), one) !== null),
-  );
-  if (held) return result(check, 'pass', 'an excerpt holds the value');
+  // A citation holds the claim when each value is in its excerpt. A value that only a guess of the
+  // order of a day, or of an unstated scale, joins to the excerpt leaves the claim open.
+  let open = '';
+  for (const row of claim.citations) {
+    const found = values.map((one) => holdsValue(excerptOf(row), one, claim.attribute));
+    if (found.every((one) => one === 'yes'))
+      return result(check, 'pass', 'an excerpt holds the value');
+    if (open === '' && !found.includes('no')) open = found.find((one) => one !== 'yes') ?? '';
+  }
+  if (open !== '') return result(check, 'cannot_check', open);
   // A value of a closed list ("export_terminal") is a class that a reader gives, never a quote.
   return values.every((one) => CODED.test(one))
     ? result(check, 'cannot_check', 'coded_value')
@@ -331,6 +614,16 @@ export interface RecordReader {
 export const sha256Of = (bytes: Uint8Array): string =>
   createHash('sha256').update(bytes).digest('hex');
 
+const RATED = new Set(['A', 'B', 'C']);
+
+// A CSV field of a register can stand in quotes ("LIBERTY"), and the stored text of the file can
+// give it with no quotes (LIBERTY). This normal form is only for the excerpt_at_page match.
+const CSV_FIELD = /(?:^|,)"|"(?:,|$)/u;
+const noQuotes = (text: string): string => text.replaceAll('"', '');
+const atPageOf = (page: string, excerpt: string): boolean =>
+  findExcerpt(page, excerpt) !== null ||
+  (CSV_FIELD.test(excerpt) && findExcerpt(noQuotes(page), noQuotes(excerpt)) !== null);
+
 /** The four checks of the stored documents. With no reader (release mode) each one is
  * cannot_check(needs_record). */
 export const recordChecks = async (
@@ -363,14 +656,17 @@ export const recordChecks = async (
   let atPage = false;
   for (const row of claim.citations) {
     const text = await reader.page(row['document_id'] ?? '', Number(row['page'] ?? '0'));
-    if (text !== null && excerptOf(row) !== '' && findExcerpt(text, excerptOf(row)) !== null) {
+    if (text !== null && excerptOf(row) !== '' && atPageOf(text, excerptOf(row))) {
       atPage = true;
       break;
     }
   }
-  // The level is a mark, not a filter (ADR 0039): the check asks for one cited document that the
-  // signed list rates, at any level.
-  const rated = read.some(([, one]) => one.level !== 'not_verified' && one.level !== '');
+  // The level is a mark, not a filter (ADR 0039): a document that the signed list does not rate
+  // passes as 'unrated'. Only a level that the record does not give is a fault.
+  const rated = read.some(([, one]) => RATED.has(one.level));
+  // A level that the record does not give is a fault, also beside a rated or unrated document.
+  const unknown = read.some(([, one]) => !RATED.has(one.level) && one.level !== 'not_verified');
+  const unrated = !unknown && read.length > 0;
   return [
     missing.length === 0
       ? result('document_exists', 'pass', 'each cited document is in the record')
@@ -387,9 +683,11 @@ export const recordChecks = async (
     atPage
       ? result('excerpt_at_page', 'pass', 'an excerpt is in the stored text at its page')
       : failOrHidden('excerpt_at_page', 'excerpt_not_at_page'),
-    rated
+    rated && !unknown
       ? result('document_level', 'pass', 'a cited document has a level')
-      : failOrHidden('document_level', 'no_rated_document'),
+      : unrated
+        ? result('document_level', 'pass', 'unrated')
+        : failOrHidden('document_level', 'no_level_in_record'),
   ];
 };
 

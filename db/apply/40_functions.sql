@@ -152,7 +152,7 @@ DECLARE
   v_kept jsonb;
 BEGIN
   IF p_old IS NULL OR NOT v_list @> jsonb_build_array(p_value) THEN
-    RAISE EXCEPTION 'the entity holds no value % in this list', p_value
+    RAISE EXCEPTION 'the target holds no value % under this key', p_value
       USING CONSTRAINT = 'value_held', HINT = 'value';
   END IF;
   SELECT jsonb_agg(x.e ORDER BY x.n) INTO v_kept
@@ -2510,9 +2510,13 @@ BEGIN
 
   -- A VALUE LEAVES A LIST (ai_remove_value). Each copy of the value leaves, and the other values
   -- keep their order. The src stays: it is one list for all the values, and it links no value to
-  -- one document. A list with no value left leaves the entity.
+  -- one document. A list with no value left leaves the entity. A relation loses the value of one
+  -- of its keys in the same way (migration 0104), and the relation stays.
   ELSIF p.op = 'update_attrs' AND p.payload ? 'remove_value' THEN
-    SELECT attrs INTO v_old FROM public.entities WHERE id = p.target_id FOR UPDATE;
+    IF p.target_kind = 'entity'
+      THEN SELECT attrs INTO v_old FROM public.entities  WHERE id = p.target_id FOR UPDATE;
+      ELSE SELECT attrs INTO v_old FROM public.relations WHERE id = p.target_id FOR UPDATE;
+    END IF;
     IF NOT FOUND THEN
       RAISE EXCEPTION 'the target % does not exist, and nothing was applied', p.target_id
         USING CONSTRAINT = 'target_exists', HINT = 'targetId';
@@ -2520,11 +2524,13 @@ BEGIN
     SELECT k INTO v_key FROM jsonb_object_keys(p.payload->'attrs') AS k;
     v_attrs := public.list_without(v_old->v_key, p.payload->'attrs'->v_key->'v');
     v_prior := jsonb_build_object(v_key, v_old->v_key);
-    UPDATE public.entities
-       SET attrs = CASE WHEN v_attrs IS NULL THEN attrs - v_key
-                        ELSE attrs || jsonb_build_object(v_key, v_attrs) END,
-           updated_at = now()
-     WHERE id = p.target_id;
+    v_attrs := CASE WHEN v_attrs IS NULL THEN v_old - v_key
+                    ELSE v_old || jsonb_build_object(v_key, v_attrs) END;
+    IF p.target_kind = 'entity' THEN
+      UPDATE public.entities  SET attrs = v_attrs, updated_at = now() WHERE id = p.target_id;
+    ELSE
+      UPDATE public.relations SET attrs = v_attrs, updated_at = now() WHERE id = p.target_id;
+    END IF;
     v_id := p.target_id;
 
   -- ------------------------------------------------------------------------------ updates --
@@ -3820,15 +3826,20 @@ END $$;
 -- copy keeps what it changed, so remove_act takes it back. A refusal names its field.
 
 -- ONE VALUE LEAVES A LIST OF AN ENTITY: an alias, a former name, a flag, an MMSI or a call sign.
--- Each copy of the value leaves, and the other values keep their order.
-CREATE OR REPLACE FUNCTION ai_remove_value(p_entity uuid, p_key text, p_value jsonb,
-                                           p_citation jsonb, p_why text)
+-- Each copy of the value leaves, and the other values keep their order. ONE VALUE ALSO LEAVES A
+-- KEY OF A RELATION (migration 0104), and the relation stays: a source that gives a value for all
+-- the relations of a party does not give it for each one. The target is an entity or a relation.
+-- The parameter took a new name, so the function is made again.
+DROP FUNCTION IF EXISTS ai_remove_value(uuid, text, jsonb, jsonb, text);
+CREATE FUNCTION ai_remove_value(p_target uuid, p_key text, p_value jsonb,
+                                p_citation jsonb, p_why text)
 RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_why   text;
   v_id    uuid;
+  v_kind  text := 'entity';
   v_act   uuid;
   v_left  jsonb;
   v_text  text;
@@ -3837,33 +3848,42 @@ DECLARE
 BEGIN
   v_why := public.review_why(p_why);
   PERFORM public.check_review_citation(p_citation);
-  IF p_key IS NULL OR p_key NOT IN ('aliases', 'former_names', 'flag_history', 'mmsi_history',
-                                    'call_sign') THEN
-    RAISE EXCEPTION 'a value leaves one of these lists: aliases, former_names, flag_history, '
-                    'mmsi_history, call_sign'
+  IF EXISTS (SELECT 1 FROM public.relations r WHERE r.id = p_target) THEN
+    v_kind := 'relation';
+    v_id := p_target;
+  ELSE
+    v_id := public.joined_entity(p_target);
+  END IF;
+  IF p_key IS NULL OR (v_kind = 'entity'
+                       AND p_key NOT IN ('aliases', 'former_names', 'flag_history',
+                                         'mmsi_history', 'call_sign')) THEN
+    RAISE EXCEPTION 'a value leaves one of these lists of an entity: aliases, former_names, '
+                    'flag_history, mmsi_history, call_sign, or one key of a relation'
       USING CONSTRAINT = 'remove_value_key';
   END IF;
   IF coalesce(jsonb_typeof(p_value), 'absent') IN ('absent', 'null', 'array', 'object') THEN
     RAISE EXCEPTION 'the value is one text or one number of the list'
       USING CONSTRAINT = 'value_held';
   END IF;
-  v_id := public.joined_entity(p_entity);
-  IF NOT EXISTS (SELECT 1 FROM public.entities e WHERE e.id = v_id) THEN
-    RAISE EXCEPTION 'the entity % is not in the graph', p_entity
+  IF v_kind = 'entity' AND NOT EXISTS (SELECT 1 FROM public.entities e WHERE e.id = v_id) THEN
+    RAISE EXCEPTION 'the entity or the relation % is not in the graph', p_target
       USING CONSTRAINT = 'target_exists';
   END IF;
   v_act := public.propose_change('update_attrs',
              jsonb_build_object('attrs', jsonb_build_object(p_key, jsonb_build_object(
                'v', p_value, 'src', jsonb_build_array(p_citation->>'document'))),
                'remove_value', true),
-             ARRAY[p_citation->>'document'], 'entity', v_id);
+             ARRAY[p_citation->>'document'], v_kind, v_id);
   PERFORM public.put_review_citation(v_act, p_citation);
   PERFORM public.apply_proposal_as(v_act, 'an AI reviewer, through the MCP server', NULL,
                                    'decided by an AI reviewer', v_why);
-  SELECT e.attrs->p_key->'v' INTO v_left FROM public.entities e WHERE e.id = v_id;
-  RETURN jsonb_build_object('removal', v_act, 'entity', v_id,
+  IF v_kind = 'entity'
+    THEN SELECT e.attrs->p_key->'v' INTO v_left FROM public.entities e WHERE e.id = v_id;
+    ELSE SELECT r.attrs->p_key->'v' INTO v_left FROM public.relations r WHERE r.id = v_id;
+  END IF;
+  RETURN jsonb_build_object('removal', v_act, v_kind, v_id,
                             'name', coalesce(public.element_name(v_id), v_id::text),
-                            'left', coalesce(v_left, '[]'::jsonb));
+                            'left', public.history_list(v_left));
 EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
             OR insufficient_privilege THEN
   GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
@@ -3873,7 +3893,7 @@ EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_excepti
                 WHEN v_rule = 'review_passage' OR v_code = '23503' THEN 'passage'
                 WHEN v_rule = 'remove_value_key' THEN 'key'
                 WHEN v_rule = 'value_held' THEN 'value'
-                ELSE 'entityId' END;
+                ELSE v_kind || 'Id' END;
 END $$;
 
 -- AN ENTITY TAKES ITS CURRENT NAME, and the name before goes to its former names or its aliases.
