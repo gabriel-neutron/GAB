@@ -38,22 +38,22 @@ describe('the node panel of the owners map', () => {
 });
 
 describe('the description of the node panel', () => {
-  const description = (id: string) =>
-    /<p id="[^"]*"[^>]*>([^<]*)<\/p>/.exec(
-      renderToStaticMarkup(
-        <ReportContext value={{ openNode: () => undefined }}>
-          <Dialog.Root open>
-            <NodeRecord id={id} />
-          </Dialog.Root>
-        </ReportContext>,
-      ),
-    )?.[1];
+  const html = (id: string) =>
+    renderToStaticMarkup(
+      <ReportContext value={{ openNode: () => undefined }}>
+        <Dialog.Root open>
+          <NodeRecord id={id} />
+        </Dialog.Root>
+      </ReportContext>,
+    );
+  const description = (id: string) => /<p id="[^"]*"[^>]*>([^<]*)<\/p>/.exec(html(id))?.[1];
 
   it('leaves out an empty country and shows no evidence score', () => {
     // VEB.RF has no country in the data. The report defines no evidence score, so none shows.
     expect(reportGraph.node('N-O002')?.country).toBe('');
     expect(description('N-O002')).toBe('');
     expect(description('N-P001')).not.toMatch(/evidence|score|of 11/i);
+    expect(html('N-P001')).not.toMatch(/evidence score|node id/i);
   });
 });
 

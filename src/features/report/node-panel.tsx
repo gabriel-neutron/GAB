@@ -46,6 +46,8 @@ const withPartyMark = (doc: string): string => {
   return mark === '' ? doc : `${doc} · ${mark}`;
 };
 
+const HIDDEN_FIELDS: ReadonlySet<string> = new Set(['node_id', 'evidence_score_0_11']);
+
 /** The record of one node, as the panel shows it. */
 export function NodeRecord({ id }: { readonly id: string }) {
   const { ui } = useContent();
@@ -154,7 +156,8 @@ export function NodeRecord({ id }: { readonly id: string }) {
       <Section title={ui.panel.record}>
         <dl className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-3 gap-y-1.5">
           {Object.entries(node)
-            .filter(([, value]) => value !== '')
+            // The report defines no evidence score, and the internal id says "node".
+            .filter(([key, value]) => value !== '' && !HIDDEN_FIELDS.has(key))
             .map(([key, value]) => (
               <div key={key} className="contents">
                 <dt className="font-mono text-report-label text-label break-words">
