@@ -286,6 +286,9 @@ export function PriceFigure({ print = false }: { print?: boolean }) {
               </text>
             </g>
           ))}
+          <text x={width - 24} y="16" textAnchor="end">
+            $ a barrel
+          </text>
           <text x={x(34.7) - 6} y={floor - 8} textAnchor="end">
             US designations of Rosneft and Lukoil
           </text>

@@ -21,7 +21,7 @@ import { PlantsMapFigure } from '@/features/report/plants-map-figure';
 import { MethodDiagram } from '@/features/report/method-diagram';
 import '@/features/report/report.css';
 
-// The still figures of the paper report; tools/report/export-figures.ts saves each one as SVG.
+// The still figures of the paper report; tools/report/export-figures.mjs saves each one as SVG or PNG.
 const figures = {
   prices: () => <PriceFigure print />,
   method: MethodDiagram,

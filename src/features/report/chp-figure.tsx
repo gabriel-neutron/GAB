@@ -1,11 +1,11 @@
 import raw from './data/chp.csv?raw';
-import chainRaw from './data/chp-chain.csv?raw';
 import { readCsv } from './line-panel';
+import { fightUi } from './content';
 
 // Figure 11: exports of high-priority (CHP) goods to Russia declared by 17 partners, 2021-2025, million USD.
-// (a) stacked bars by supplier, China and Hong Kong in signal. (b) the supply chain of Russia's imports of
-// battlefield goods, Jan-Oct 2023, from Russian customs data (KSE): the share of
-// coalition countries at each stage. KSE: these flows are not necessarily export control violations.
+// (a) stacked bars by reporting country, China and Hong Kong in signal. (b) the nine third countries,
+// one small chart each on one scale, in the order of the web figure. The words are those of the web figure.
+const copy = fightUi.suppliers;
 const rows = readCsv(raw);
 const YEARS = [2021, 2022, 2023, 2024, 2025];
 const v = (panel: string, series: string, year: number) => {
@@ -20,18 +20,17 @@ const SUPPLIERS = [
   { name: 'Hong Kong', tone: 'new' },
   { name: 'Nine third countries', tone: 'other' },
 ] as const;
-const chain = readCsv(chainRaw);
-const STAGES = [
-  'Brand (producer headquarters)',
-  'Country of manufacture',
-  'Final seller to Russia',
+const COUNTRIES = [
+  ...new Set(rows.filter((x) => x['panel'] === 'b').map((x) => x['series'] ?? '')),
 ];
-const GROUPS = [
-  { name: 'Coalition', tone: 'old' },
-  { name: 'China, Hong Kong', tone: 'new' },
-  { name: 'Other', tone: 'other' },
-  { name: 'Not identified', tone: 'unknown' },
-] as const;
+// The web order: the largest change from 2023 to 2025 first; a country with no 2025 value last.
+const change = (c: string) => {
+  const from = v('b', c, 2023),
+    to = v('b', c, 2025);
+  return from === undefined || to === undefined || from === 0 ? -Infinity : to / from;
+};
+const THIRD = COUNTRIES.sort((a, b) => change(b) - change(a));
+const MAX_B = Math.max(...THIRD.flatMap((c) => YEARS.map((y) => v('b', c, y) ?? 0)));
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 export function ChpFigure() {
@@ -39,17 +38,21 @@ export function ChpFigure() {
     BASE = 250,
     SCALE = 0.016,
     BW = 34;
-  const gx = 330,
-    BWID = 290;
+  // Panel b: three rows of three small charts under panel a.
+  const BY = 350,
+    CW = 213,
+    CH = 104,
+    COL = 39,
+    BH = 48;
   return (
     <figure className="report-chart">
       <svg
-        viewBox="0 0 640 340"
+        viewBox={`0 0 640 ${BY + 56 + 3 * CH}`}
         role="img"
-        aria-label="Exports of high-priority goods to Russia by supplier, 2021-2025"
+        aria-label="Exports of high-priority goods to Russia by reporting country, and by nine third countries, 2021-2025"
       >
         <text y="12" className="lp-title">
-          a. By supplier
+          {copy.a}
         </text>
         <text y="30" className="lp-axis">
           million USD
@@ -110,72 +113,50 @@ export function ChpFigure() {
         <text x={X0} y={BASE + 70} className="lp-axis lp-series new">
           % = China and Hong Kong share
         </text>
-        <text x={gx} y="12" className="lp-title">
-          b. Who makes and who sells, 2023
-        </text>
-        <text x={gx} y="30" className="lp-axis">
-          Russian imports of CHP battlefield goods, Jan–Oct 2023, %
-        </text>
-        {STAGES.map((stage, r) => {
-          let x = gx;
-          const y = 58 + r * 54;
-          return (
-            <g key={stage}>
-              <text x={gx} y={y - 6} className="lp-label flow-name">
-                {stage}
-              </text>
-              {GROUPS.map((g) => {
-                const share = Number(
-                  chain.find((c) => c['stage'] === stage && c['group'] === g.name)?.['share_pct'] ??
-                    0,
-                );
-                const w = (share / 100) * BWID,
-                  x1 = x;
-                x += w;
-                return share > 0 ? (
-                  <g key={g.name} className={`lp-series ${g.tone}`}>
-                    <rect x={x1} y={y} width={w} height="20" className="lp-bar stack" />
-                    {w > 24 && (
-                      <text x={x1 + 4} y={y + 14} className="lp-label on-bar">
-                        {Math.round(share)}%
+        <g transform={`translate(0,${BY})`}>
+          <text y="12" className="lp-title">
+            {copy.b}
+          </text>
+          <text y="30" className="lp-axis">
+            million USD · {copy.bScale.replace('{max}', String(MAX_B))}
+          </text>
+          <text y="46" className="lp-axis">
+            {copy.noValueShort}: no declared value
+          </text>
+          {THIRD.map((c, k) => {
+            const cx = (k % 3) * CW,
+              cy = 64 + Math.floor(k / 3) * CH,
+              base = cy + 22 + BH;
+            return (
+              <g key={c}>
+                <text x={cx} y={cy + 10} className="lp-label flow-name">
+                  {copy.countries[c] ?? c}
+                </text>
+                <line x1={cx} x2={cx + 5 * COL} y1={base} y2={base} className="plot-grid" />
+                {YEARS.map((year, i) => {
+                  const value = v('b', c, year),
+                    mid = cx + i * COL + COL / 2,
+                    h = ((value ?? 0) / MAX_B) * BH;
+                  return (
+                    <g key={year}>
+                      {value !== undefined && (
+                        <g className="lp-series old">
+                          <rect x={mid - 3} y={base - h} width="6" height={h} className="lp-bar" />
+                        </g>
+                      )}
+                      <text x={mid} y={base - h - 4} textAnchor="middle" className="lp-axis">
+                        {value === undefined ? copy.noValueShort : value.toFixed(1)}
                       </text>
-                    )}
-                  </g>
-                ) : null;
-              })}
-            </g>
-          );
-        })}
-        {GROUPS.map((g, i) => (
-          <g
-            key={g.name}
-            transform={`translate(${gx + (i % 2) * 140},${226 + Math.floor(i / 2) * 16})`}
-          >
-            <g className={`lp-series ${g.tone}`}>
-              <rect width="10" height="10" y="-9" className="lp-bar" />
-            </g>
-            <text x="14" className="lp-axis">
-              {g.name}
-            </text>
-          </g>
-        ))}
-        <text x={gx} y="278" className="lp-axis">
-          Top coalition brands, million USD:
-        </text>
-        <text x={gx} y="294" className="lp-axis">
-          {chain
-            .filter((c) => c['stage'] === 'brand')
-            .slice(0, 2)
-            .map((c) => `${c['group']} ${c['share_pct']}`)
-            .join(' · ')}
-        </text>
-        <text x={gx} y="310" className="lp-axis">
-          {chain
-            .filter((c) => c['stage'] === 'brand')
-            .slice(2)
-            .map((c) => `${(c['group'] ?? '').replace(' (US)', '')} ${c['share_pct']}`)
-            .join(' · ')}
-        </text>
+                      <text x={mid} y={base + 13} textAnchor="middle" className="lp-axis">
+                        {year}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })}
+        </g>
       </svg>
     </figure>
   );
