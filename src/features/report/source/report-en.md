@@ -611,7 +611,7 @@ The report rests on a database of entities (such as companies, vessels, sites, p
 
 These documents come from the official sanctions lists (OFAC, United Kingdom, EU acts), from company registers, from public statistics (UN Comtrade, Eurostat, World Bank, Bank of Russia, Russian Ministry of Finance), from research institutes (KSE, CREA, Bruegel) and from investigative press. Leads came from web and news searches (SearXNG, GDELT) and from the registers; a search result was never cited, and the queries were not logged. The documents of the data release were retrieved between 7 October and 27 November 2026; the last corrections of the database date from 28 November 2026.
 
-Each document is stored as received, under its SHA-256 hash, which also forms its document id. The database records the address and the date of retrieval, with no time of day. The raw files are kept in a private store, where the accounts of the application can add a file but cannot delete it; they are not published, and no web archive copy is recorded.
+Each document is stored as received, under its SHA-256 hash, which also forms its document id. The database records the address and the date of retrieval, with no time of day. The raw files are kept in a private store, where the accounts of the application can add a file but cannot delete it, and which keeps no older version of a file; they are not published, and no web archive copy is recorded.
 
 ### A.2 Source rules
 
