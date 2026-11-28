@@ -1021,7 +1021,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Each document is stored as received, under its SHA-256 hash, which also forms its document id. The database records the address and the date of retrieval, with no time of day. The raw files are kept in a private store that cannot change or delete them; they are not published, and no web archive copy is recorded.',
+        text: 'Each document is stored as received, under its SHA-256 hash, which also forms its document id. The database records the address and the date of retrieval, with no time of day. The raw files are kept in a private store, where the accounts of the application can add a file but cannot delete it; they are not published, and no web archive copy is recorded.',
       },
       { kind: 'h3', text: 'A.2 Source rules' },
       {
