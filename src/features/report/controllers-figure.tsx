@@ -1,9 +1,10 @@
 import raw from './data/controllers.csv?raw';
 import { readCsv } from './line-panel';
 
-// Figure 13: ultimate controllers of the report's nodes, by holding and layer, 2026 (number of nodes).
-// Nodes: the entities of the record designated by the EU, OFAC or the UK and linked to at least 3 others,
-// and the designated fleet as one aggregate node. One band unit is one node,
+// Old print chart (no figure number now; the PDF figure 12 is the web ownership figure): ultimate
+// controllers of the entities of the report, by holding and layer, 2026 (number of entities).
+// Entities: those of the record designated by the EU, OFAC or the UK and linked to at least 3 others,
+// and the designated fleet as one aggregate entity. One band unit is one entity,
 // not economic size. A lead (unstored source or a link inferred from a name) is a dashed band.
 const rows = readCsv(raw)
   .map((r) => ({
@@ -36,7 +37,7 @@ const holdings = CONTROLLERS.flatMap((c) => {
   );
 });
 
-const U = 4.4, // pixels per node
+const U = 4.4, // pixels per entity
   GAP = 8,
   TOP = 24,
   XC = 170, // controller column
@@ -162,7 +163,7 @@ export function ControllersFigure() {
               {n.replace(' or level not stated', '').replace(' (no single controller)', '')}
             </text>
             <text x={XC - 6} y={c.y + (c.total * U) / 2 + 13} textAnchor="end" className="lp-axis">
-              {c.total} nodes
+              {c.total} entities
             </text>
           </g>
         ))}
